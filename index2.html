@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌸 國中教育會考 國文寫作模擬平台 📝</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sakura: {
+                            light: '#FDFBFB',   // 改為極淺的暖白/米灰，減少粉紅感，保護眼睛
+                            base: '#F4DDDF',    // 櫻花粉主色 (用於邊框、次要按鈕)
+                            primary: '#E58A9A', // 溫和的深粉紅 (主要互動元件)
+                            dark: '#C86B7D',    // 更深的粉紅 (Hover效果)
+                            text: '#4A4A4A'     // 中性深灰色 (提升閱讀清晰度)
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { font-family: '微軟正黑體', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #FDFBFB; color: #4A4A4A; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-size: 1.1rem; transition: all 0.2s ease; }
+        .day-header { font-weight: bold; color: #C86B7D; text-align: center; padding: 4px; font-size: 1.2rem; }
+        .day-empty { background-color: transparent; }
+        .day-normal { background-color: #F9F1F2; color: #4A4A4A; border: 1px solid #F4DDDF; }
+        
+        /* 完成的日期樣式：加入互動性與點擊游標 */
+        .day-completed { background-color: #E58A9A; color: white; font-weight: bold; position: relative; box-shadow: 0 3px 6px rgba(229, 138, 154, 0.3); cursor: pointer; }
+        .day-completed:hover { background-color: #C86B7D; transform: translateY(-2px); box-shadow: 0 5px 10px rgba(200, 107, 125, 0.4); }
+        .day-completed::after { content: '🌸'; position: absolute; top: 2px; right: 2px; font-size: 0.7rem; }
+        
+        .loader { border: 4px solid #F4DDDF; border-top: 4px solid #E58A9A; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: #F9F1F2; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb { background: #E58A9A; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb:hover { background: #C86B7D; }
+
+        /* 防止英文字過長不換行導致跑版 */
+        .break-words { word-break: break-word; overflow-wrap: break-word; }
+
+        /* --- Markdown 報告專用渲染樣式 (字體全面加大) --- */
+        .markdown-body { color: #333333; line-height: 1.9; font-size: 1.25rem; }
+        @media (min-width: 768px) { .markdown-body { font-size: 1.35rem; } }
+        .markdown-body h1 { font-size: 2rem; font-weight: bold; color: #C86B7D; margin: 2rem 0 1rem; border-bottom: 3px solid #F4DDDF; padding-bottom: 0.5rem; }
+        .markdown-body h1:first-child { margin-top: 0; }
+        .markdown-body h2 { font-size: 1.75rem; font-weight: bold; color: #A64D5F; margin: 2rem 0 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .markdown-body h3 { font-size: 1.5rem; font-weight: bold; color: #E58A9A; margin: 1.5rem 0 0.5rem; }
+        .markdown-body h4 { font-size: 1.25rem; font-weight: bold; color: #4A4A4A; margin: 1.25rem 0 0.5rem; background-color: #F9F1F2; padding: 0.5rem 1rem; border-radius: 0.5rem; display: inline-block; }
+        .markdown-body p { margin-bottom: 1.2rem; }
+        .markdown-body ul { list-style-type: none; padding-left: 0.5rem; margin-bottom: 1.2rem; }
+        .markdown-body li { margin-bottom: 0.85rem; padding-left: 1.5rem; position: relative; }
+        .markdown-body li::before { content: '🎀'; position: absolute; left: 0; font-size: 1rem; }
+        .markdown-body strong { font-weight: 700; color: #A64D5F; background-color: #FFF0F3; padding: 0 4px; border-radius: 4px; } /* 凸顯錯誤或重點 */
+        .markdown-body blockquote { border-left: 6px solid #E58A9A; background-color: #FDFBFB; padding: 1.5rem; margin: 1.5rem 0; border-radius: 0 0.5rem 0.5rem 0; font-style: italic; color: #5C3A41; font-size: 1.4rem; line-height: 2; border: 1px solid #F4DDDF; }
+        .markdown-body blockquote p:last-child { margin-bottom: 0; }
+        
+        /* Table Styles */
+        .markdown-body table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; background-color: white; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #F4DDDF; }
+        .markdown-body th, .markdown-body td { border: 1px solid #F4DDDF; padding: 1.2rem 1.5rem; text-align: left; }
+        .markdown-body th { background-color: #F9F1F2; font-weight: bold; color: #A64D5F; white-space: nowrap; font-size: 1.2rem; }
+        .markdown-body tr:nth-child(even) { background-color: #FDFBFB; }
+        .markdown-body hr { border: 0; border-top: 3px dashed #F4DDDF; margin: 2.5rem 0; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3"></div>
+
+    <!-- Top Navigation -->
+    <header class="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
+        <div class="w-[96%] xl:w-[98%] max-w-none mx-auto px-4 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3 shrink-0">
+                <i class="fas fa-feather-alt text-sakura-primary text-3xl"></i>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 cursor-pointer truncate tracking-wide" onclick="appState.showView('dashboard')">國文寫作模擬平台 📝</h1>
+            </div>
+            <div class="flex items-center gap-4 sm:gap-6 shrink-0">
+                <!-- 題庫後台連結與狀態 -->
+                <a href="migration_tool.html" target="_blank" class="hidden sm:flex items-center gap-2 text-sm sm:text-base text-gray-600 hover:text-sakura-primary font-bold transition-colors bg-gray-50 hover:bg-pink-50 px-4 py-2 rounded-xl border border-gray-200 shadow-sm">
+                    <i class="fas fa-database text-sakura-dark"></i> 題庫管理後台
+                </a>
+                
+                <div id="connection-status" class="flex items-center gap-2 text-sm sm:text-base bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+                    <div class="w-3 h-3 rounded-full bg-gray-400" id="status-light"></div>
+                    <span id="status-text" class="text-gray-600 font-bold hidden md:inline">初始化中... 🐾</span>
+                </div>
+                
+                <div id="header-user" class="hidden items-center gap-2 font-bold text-gray-700 bg-sakura-light px-4 py-2 rounded-full text-base sm:text-lg border border-sakura-base">
+                    <i class="fas fa-user-circle text-xl text-sakura-dark"></i>
+                    <span id="header-username" class="max-w-[100px] sm:max-w-[200px] truncate"></span>
+                    <button onclick="openApiModal()" class="ml-2 text-gray-400 hover:text-sakura-primary transition-colors" title="API 金鑰設定"><i class="fas fa-cog"></i></button>
+                    <button onclick="logout()" class="ml-2 text-gray-400 hover:text-red-500 transition-colors" title="登出"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow w-[96%] xl:w-[98%] max-w-none mx-auto px-4 py-8 relative flex flex-col items-center">
+
+        <!-- API Key Modal -->
+        <div id="api-key-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[60] backdrop-blur-sm px-4">
+            <div class="bg-white p-8 rounded-3xl shadow-xl max-w-lg w-full border-2 border-sakura-base max-h-[90vh] overflow-y-auto">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4"><i class="fas fa-shield-alt text-sakura-primary mr-3"></i>安全設定 API 金鑰 🔑</h3>
+                <p class="text-lg text-gray-600 mb-6 leading-relaxed">
+                    為了防止金鑰外洩，請將您的 API 金鑰輸入於此。<br>
+                    <span class="font-bold text-sakura-dark mt-2 block">此金鑰將只會安全地儲存於您的瀏覽器 (Local Storage) 中，不會寫入公開的程式碼喔！💖</span>
+                </p>
+                <input type="text" id="api-key-input" class="w-full px-5 py-4 text-xl rounded-xl border-2 border-gray-200 focus:outline-none focus:border-sakura-primary bg-gray-50 mb-6 font-mono" placeholder="請貼上您的 API Key (AIzaSy...)">
+                <div class="flex justify-end gap-4">
+                    <button onclick="closeApiModal()" class="px-6 py-3 text-xl text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-bold">關閉</button>
+                    <button onclick="saveApiKey()" class="px-6 py-3 text-xl bg-sakura-primary text-white hover:bg-sakura-dark rounded-xl transition-colors font-bold shadow-md">儲存並使用 ✨</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Content Modal -->
+        <div id="history-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[70] backdrop-blur-sm px-2 md:px-4">
+            <div class="bg-white rounded-3xl w-[98%] max-w-none h-[92vh] flex flex-col shadow-2xl overflow-hidden border-2 border-sakura-base">
+                <div class="p-6 border-b-2 border-sakura-base flex justify-between items-center bg-sakura-light shrink-0">
+                    <h3 class="text-3xl font-bold text-gray-800 flex items-center gap-3" id="history-modal-title">
+                        <i class="far fa-calendar-alt text-sakura-dark"></i> 練習紀錄 📖
+                    </h3>
+                    <button onclick="closeHistoryModal()" class="text-gray-400 hover:text-red-500 text-5xl leading-none transition-colors">&times;</button>
+                </div>
+                <div id="history-modal-content" class="p-6 md:p-10 overflow-y-auto flex-grow bg-white">
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. Login View -->
+        <div id="login-view" class="max-w-2xl w-full bg-white p-12 rounded-3xl shadow-xl border border-gray-100 view-section mt-12 relative overflow-hidden">
+            <!-- 裝飾背景 -->
+            <div class="absolute top-[-40px] right-[-30px] text-sakura-light opacity-60 transform rotate-12 text-9xl pointer-events-none">
+                🌸
+            </div>
+            
+            <div class="relative z-10">
+                <h2 class="text-4xl font-extrabold text-center text-gray-800 mb-6">🌸 國文寫作模擬平台 📝</h2>
+                
+                <!-- 激勵語錄 -->
+                <div class="bg-gradient-to-r from-sakura-light to-white p-6 rounded-2xl border-2 border-sakura-base mb-8 text-center shadow-sm">
+                    <p class="text-2xl text-sakura-dark font-extrabold mb-3 flex items-center justify-center gap-2">
+                        <i class="fas fa-mountain text-sakura-primary"></i> 目標 2027 會考 5A6級分！ 🏆
+                    </p>
+                    <p class="text-lg text-gray-700 font-bold">「穩紮穩打，筆下生花。每一次的落筆，都是邁向六級分高峰的階梯！ ✨」</p>
+                </div>
+                
+                <div class="mb-8">
+                    <label class="block text-xl font-bold text-gray-700 mb-4">請輸入您的姓名登入： 🙋‍♀️🙋‍♂️</label>
+                    <div class="flex gap-4">
+                        <input type="text" id="login-name" class="flex-grow px-6 py-4 text-xl w-full rounded-2xl border-2 border-gray-200 focus:outline-none focus:border-sakura-primary bg-gray-50" placeholder="例如：王小明">
+                        <button onclick="handleLogin()" class="bg-sakura-primary text-white px-10 py-4 text-xl rounded-2xl hover:bg-sakura-dark transition-colors shadow-md font-bold shrink-0">登入 🚀</button>
+                    </div>
+                </div>
+
+                <div class="border-t-2 border-gray-100 pt-8">
+                    <h3 class="text-lg font-bold text-gray-500 mb-5 flex items-center gap-2">
+                        <i class="fas fa-bolt text-yellow-500 text-xl"></i> 快速登入 (點擊頭像) ⚡
+                    </h3>
+                    <div id="quick-login-list" class="flex flex-wrap gap-3">
+                        <div class="text-lg text-gray-400 italic font-medium">載入中... 🐾</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Dashboard View -->
+        <div id="dashboard-view" class="hidden view-section w-full">
+            <div class="flex flex-col md:flex-row gap-8 w-full">
+                <!-- Left: Calendar Profile -->
+                <div class="w-full md:w-[35%] xl:w-[30%] bg-white p-8 rounded-3xl shadow-lg border border-gray-100 h-fit shrink-0">
+                    <div class="text-center mb-8">
+                        <div class="w-28 h-28 bg-sakura-light rounded-full mx-auto flex items-center justify-center text-sakura-primary text-5xl mb-5 shadow-inner border-2 border-sakura-base">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                        <h2 class="text-3xl font-extrabold break-words text-gray-800" id="dashboard-username">使用者</h2>
+                        <p class="text-lg text-gray-500 mt-2 font-bold">會考倒數準備中 🚀✨</p>
+                    </div>
+                    
+                    <div class="border-t-2 border-gray-100 pt-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-xl text-gray-700 flex items-center gap-2"><i class="far fa-calendar-check text-sakura-primary"></i> 寫作日曆 📅</h3>
+                            <div class="flex items-center gap-3 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl text-gray-700 font-bold text-lg">
+                                <button onclick="changeMonth(-1)" class="hover:text-sakura-primary transition-colors p-1"><i class="fas fa-chevron-left"></i></button>
+                                <span id="calendar-month-year" class="text-lg tracking-wide min-w-[90px] text-center"></span>
+                                <button onclick="changeMonth(1)" class="hover:text-sakura-primary transition-colors p-1"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="calendar-grid mb-4">
+                            <div class="day-header">日</div><div class="day-header">一</div><div class="day-header">二</div><div class="day-header">三</div><div class="day-header">四</div><div class="day-header">五</div><div class="day-header">六</div>
+                        </div>
+                        <div id="calendar-body" class="calendar-grid"></div>
+                        <div class="mt-8 text-base text-gray-600 flex items-center justify-center gap-3 bg-sakura-light py-3 rounded-xl font-bold border border-sakura-base">
+                            <span class="w-5 h-5 inline-block bg-sakura-primary rounded shadow-sm relative"><span class="absolute top-[1px] right-[2px] text-[12px] text-white">🌸</span></span> 
+                            <span>表示當日有紀錄 <strong>(點擊看六級分解析 🎀)</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Question List -->
+                <div class="w-full md:w-[65%] xl:w-[70%] bg-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100 flex-grow">
+                    <h2 class="text-3xl font-extrabold mb-8 text-gray-800 border-b-4 border-sakura-light pb-4 flex justify-between items-end">
+                        <span class="flex items-center gap-3"><i class="fas fa-list-ul text-sakura-primary"></i> 2027 會考預測趨勢題庫 📚</span>
+                        <span class="text-lg font-bold text-sakura-dark bg-sakura-light px-5 py-2 rounded-full shadow-sm border border-sakura-base">共 <span id="total-q-count">0</span> 題</span>
+                    </h2>
+                    <div id="question-list" class="space-y-5 max-h-[800px] overflow-y-auto pr-4">
+                        <div class="text-center text-gray-500 py-16"><i class="fas fa-spinner fa-spin text-4xl mb-4 text-sakura-primary"></i><br><span class="text-xl font-bold">正在載入會考題庫... 🐾</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Test Interface View -->
+        <div id="test-view" class="hidden view-section w-[92%] xl:w-[85%] max-w-[1400px] mx-auto space-y-8">
+            <button onclick="appState.showView('dashboard')" class="text-gray-600 hover:text-sakura-primary mb-2 inline-flex items-center gap-2 font-extrabold text-xl transition-colors bg-white px-6 py-3 rounded-2xl shadow-sm border border-gray-200 w-fit">
+                <i class="fas fa-arrow-left"></i> 返回列表 🔙
+            </button>
+            
+            <div class="bg-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8 border-b-2 border-gray-100 pb-6">
+                    <h2 id="q-title" class="text-3xl md:text-4xl font-extrabold text-gray-800 break-words leading-tight"></h2>
+                    <span id="q-type" class="bg-sakura-light text-sakura-dark text-lg px-5 py-2 rounded-full font-extrabold border border-sakura-base whitespace-nowrap shadow-sm mt-2 sm:mt-0"></span>
+                </div>
+                
+                <div class="bg-gray-50 p-8 rounded-2xl border-2 border-gray-100 mb-8">
+                    <h3 class="font-extrabold text-gray-800 mb-4 text-2xl flex items-center"><i class="fas fa-info-circle mr-3 text-sakura-primary text-3xl"></i>寫作引導說明： 💡</h3>
+                    <p id="q-instructions" class="text-gray-700 text-xl leading-loose mb-8 break-words font-medium"></p>
+                    
+                    <h3 class="font-extrabold text-gray-800 mb-4 text-2xl flex items-center"><i class="fas fa-comment-dots mr-3 text-sakura-primary text-3xl"></i>題目資訊 / 圖表： 📊</h3>
+                    <p id="q-prompt" class="text-gray-700 whitespace-pre-wrap leading-loose text-xl break-words bg-white p-6 rounded-xl border border-gray-200 shadow-sm font-medium"></p>
+                </div>
+
+                <!-- 6級分範文展示區 (新增) -->
+                <button onclick="toggleSample()" class="text-xl text-white hover:bg-sakura-dark flex items-center justify-center gap-3 font-bold bg-sakura-primary px-8 py-4 rounded-2xl transition-colors shadow-md w-full sm:w-auto">
+                    <i id="sample-icon" class="fas fa-book-reader text-2xl"></i> <span id="sample-text">觀摩六級分滿分範文 👀✨</span>
+                </button>
+                <div id="q-sample" class="hidden mt-6 p-8 bg-[#fdfbf7] rounded-2xl border-2 border-sakura-base text-gray-800 whitespace-pre-wrap text-xl leading-loose shadow-inner break-words font-serif"></div>
+            </div>
+
+            <!-- Answer Area -->
+            <div class="bg-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100 relative">
+                <div class="flex justify-between items-end mb-6">
+                    <h3 class="font-extrabold text-2xl text-gray-800 flex items-center gap-3"><i class="fas fa-pencil-alt text-sakura-primary text-3xl"></i>您的作文內容 ✍️</h3>
+                    <div class="flex items-center gap-5">
+                        <span class="text-lg text-gray-500 font-bold hidden sm:inline"><i class="fas fa-stopwatch text-sakura-dark"></i> 建議作答時間：50分鐘 ⏱️</span>
+                        <span id="word-count" class="text-xl text-sakura-dark bg-sakura-light px-5 py-2 rounded-2xl font-extrabold shadow-sm border border-sakura-base">字數: 0</span>
+                    </div>
+                </div>
+                <!-- 模擬稿紙背景的顏色，加深字體與行距 -->
+                <textarea id="user-answer" class="w-full h-[500px] p-8 rounded-2xl border-2 border-gray-200 focus:border-sakura-primary focus:ring-0 resize-y bg-[#fdfbf7] transition-colors text-2xl leading-[2.5] shadow-inner font-serif text-gray-800" placeholder="請在此輸入您的國文作文... 🌸&#10;會考寫作建議字數約 500~600 字以上，請盡情發揮您的思辨與文采！ ✨"></textarea>
+                
+                <div class="mt-8 flex flex-col sm:flex-row justify-between items-center gap-6">
+                    <div id="last-saved" class="text-lg text-gray-500 italic w-full text-center sm:text-left font-bold"></div>
+                    <button id="submit-btn" onclick="submitAnswer()" class="bg-sakura-primary text-white w-full sm:w-auto px-12 py-5 rounded-full hover:bg-sakura-dark transition-all shadow-xl font-extrabold text-2xl flex items-center justify-center gap-3 transform hover:-translate-y-1 shrink-0">
+                        <i class="fas fa-paper-plane text-3xl"></i> 提交給會考 AI 閱卷老師 💯✨
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Loading Overlay -->
+            <div id="ai-loading" class="hidden bg-white/90 absolute inset-0 z-10 flex flex-col items-center justify-center rounded-3xl backdrop-blur-md m-4">
+                <div class="loader mb-8 border-8 w-20 h-20"></div>
+                <p class="text-sakura-dark font-extrabold text-3xl animate-pulse text-center px-4 mb-4" id="ai-loading-text">AI 閱卷委員正在依據會考標準批改中... 🧐✍️</p>
+                <p class="text-xl text-gray-600 font-bold">分析立意取材與結構組織中，請稍候... 🌸</p>
+            </div>
+        </div>
+
+        <!-- 4. Feedback View -->
+        <div id="feedback-view" class="hidden view-section w-[92%] xl:w-[85%] max-w-[1400px] mx-auto space-y-8">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800 flex items-center gap-4">
+                    <i class="fas fa-award text-yellow-500 text-4xl md:text-5xl drop-shadow-md"></i> 會考寫作專屬指導報告 🏆✨
+                </h2>
+                <div class="flex gap-4 w-full sm:w-auto">
+                    <button onclick="appState.showView('test')" class="flex-1 sm:flex-none px-8 py-4 border-2 border-sakura-primary text-sakura-dark rounded-2xl hover:bg-sakura-light font-extrabold transition-colors text-center text-xl shadow-sm">
+                        <i class="fas fa-undo mr-2"></i> 修改作文 ✏️
+                    </button>
+                    <button onclick="appState.showView('dashboard')" class="flex-1 sm:flex-none px-8 py-4 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 font-extrabold transition-colors text-center text-xl shadow-sm border border-gray-200">
+                        <i class="fas fa-list mr-2"></i> 回列表 🔙
+                    </button>
+                </div>
+            </div>
+
+            <!-- Markdown Content Area -->
+            <div class="bg-white p-10 md:p-16 rounded-3xl shadow-xl border border-gray-100 markdown-body break-words" id="fb-content">
+            </div>
+        </div>
+
+    </main>
+
+    <script type="module">
+        // --- Custom Toast Notification System ---
+        window.showToast = (message, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColors = {
+                'error': 'bg-red-500',
+                'success': 'bg-pink-500',
+                'info': 'bg-gray-800'
+            };
+            
+            let icon = 'fa-info-circle';
+            if (type === 'error') icon = 'fa-exclamation-circle';
+            if (type === 'success') icon = 'fa-check-circle';
+
+            toast.className = `${bgColors[type] || bgColors['info']} text-white px-6 py-4 rounded-2xl shadow-2xl transform transition-all duration-300 translate-y-12 opacity-0 flex items-start gap-4 max-w-[90vw] sm:max-w-lg pointer-events-auto border border-white/20`;
+            toast.innerHTML = `<i class="fas ${icon} mt-1.5 text-xl shrink-0"></i><div class="text-lg font-bold leading-relaxed break-words whitespace-pre-wrap">${message}</div>`;
+            
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-12', 'opacity-0');
+            });
+            
+            const duration = type === 'error' ? 5000 : 3000;
+            setTimeout(() => {
+                toast.classList.add('translate-y-12', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        };
+
+        // --- 2. Firebase Setup & Global State ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCan2_Rc26HsLkOPr0i5QrgdjAYyqcigJ0",
+            authDomain: "english-reading-6b506.firebaseapp.com",
+            projectId: "english-reading-6b506",
+            storageBucket: "english-reading-6b506.firebasestorage.app",
+            messagingSenderId: "494747176273",
+            appId: "1:494747176273:web:585487fadb29b2e5e2d770",
+            measurementId: "G-4JD6R9MRPQ"
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gept-writing-mock-v1'; 
+        const apiKey = ""; 
+
+        // 資料表結構設定
+        const COL_QUESTIONS = 'TW-Exam-Questions-2027'; // 國文專用 collection
+        const COL_USERS = 'TW-Exam-Users';              
+        const COL_SUBMISSIONS = 'TW-Exam-Submissions';  
+        const DOC_GLOBAL = 'global';
+
+        let app, db, auth;
+        let currentUserUid = null;
+        let currentUserName = null;
+        let isFirebaseReady = false;
+        
+        let questionsData = []; 
+        let questionsStatus = 'loading'; 
+        let userProfileData = { historyIndex: {}, completedDates: [] };
+        let unsubscribeUser = null;
+        
+        let currentCalendarDate = new Date();
+
+        // --- 預設 20 題會考趨勢題庫 (加入 6 級分範文) ---
+        const DEFAULT_QUESTIONS = [
+            { id: 'q1', type: '圖表判讀與社會觀察', title: '我們與惡的距離：網路酸民現象', instructions: '請閱讀下方圖表資訊，寫下你對「網路酸民現象」的理解，並結合個人生活經驗，提出你的看法。', prompt: '【調查數據顯示】：\n在近三年的網路霸凌事件中，有高達 65% 的攻擊者表示「只是覺得好玩或跟風」，20% 表示「為了伸張正義」，僅有 15% 是與被害者有私人恩怨。\n\n請說明你對此數據的解讀，並寫下你的感受與想法。', sample: '　　螢幕散發著冷冽的藍光，鍵盤敲擊聲如同一陣陣急促的雨，在這個看似自由的虛擬國度裡，人們披上匿名的外衣，化身為手持利刃的法官。根據數據顯示，高達百分之六十五的網路霸凌者，其動機竟是輕描淡寫的「好玩或跟風」。這般輕率的惡意，令人不寒而慄，也讓我深刻反思，我們與惡的距離，原來僅在一指之間。\n\n　　「雪崩的時候，沒有一片雪花是無辜的。」這句話精準地刻畫了跟風霸凌的本質。許多人或許並未直接發起攻擊，但在螢幕後方輕輕按下的一個「讚」、一次「分享」，或是跟著群眾嘲諷的一句玩笑，都成了壓垮受害者的最後一根稻草。在虛擬世界中，個人責任被群體稀釋，從眾心理讓人們輕易地跨越了道德的底線。當「好玩」凌駕於他人的尊嚴與痛苦之上，這不僅是個人的良知迷失，更是整個社會同理心的匱乏。\n\n　　我曾親眼目睹班上同學因一件微小的誤會，而在班級群組中遭到鋪天蓋地的嘲諷。起初，只有兩三個人發言，但隨後，越來越多「覺得好玩」的人加入戰局。我看著那名同學日漸黯淡的眼神，心中滿是掙扎。最終，我鼓起勇氣在群組中呼籲大家冷靜，雖然引來了一些冷言冷語，但霸凌的浪潮總算稍稍平息。那次經驗讓我明白，在群眾的喧囂中保持清醒，需要極大的勇氣；而冷眼旁觀，其實也是另一種形式的施暴。\n\n　　面對網路酸民現象，我們不能僅僅譴責，更需從自身做起。在敲下鍵盤前，我們應當在心中植入一把名為「同理」的尺，多思考三秒鐘：這段文字是否會成為刺向他人的利刃？真正的正義，從來不是建立在言語的暴力之上；真正的幽默，也不該以他人的痛苦為代價。期許我們都能成為網路世界中帶來溫暖的光，而非隨波逐流的暗流。' },
+            { id: 'q2', type: '情境想像與生命體悟', title: '門', instructions: '「門」可以是有形的阻隔，也可以是無形的心防；打開門可能是迎接新世界，關上門可能是尋求庇護。請以「門」為題，寫下你的經驗、感受或想法。', prompt: '每個人生命中都會面對無數扇門。有些門充滿未知，有些門給人安全感。請結合具體經驗，寫出你面對某一扇「門」時的故事。', sample: '　　在人生的長廊裡，矗立著無數扇門。有的門扉半掩，透著溫暖的微光，引人駐足；有的則深鎖緊閉，散發著令人卻步的幽暗。而對我而言，「門」不僅是空間的區隔，更是心靈的防線，每一次的開與關，都是一次與自我對話的歷程。\n\n　　童年時期的我，是個極度缺乏安全感的孩子。那時，我的房間有一扇厚重的木門，只要一遇見挫折或委屈，我便會逃回房間，將那扇門緊緊鎖上。門外，是父母無奈的嘆息和社會的喧囂；門內，則是我獨自舔舐傷口的小小堡壘。那扇門，是我躲避外界風雨的盾牌，卻也悄悄地，將我與世界隔離，讓我困在自怨自艾的泥淖中無法自拔。\n\n　　直到國二那年，班上舉辦了一場話劇公演。平時總是安靜坐在角落的我，意外地被老師指派擔任要角。面對這突如其來的挑戰，我的第一反應是恐懼，我想再次退回那扇緊閉的木門後。然而，看著同學們熱烈討論的神情，以及老師眼中殷切的期盼，我心中的某個角落似乎被觸動了。我深吸一口氣，顫抖著手，緩緩推開了那扇長久以來封閉的心門。\n\n　　推開門的剎那，迎面而來的並非我想像中的狂風暴雨，而是溫暖和煦的陽光。在排練的過程中，我學會了表達自我，學會了傾聽他人，更收穫了珍貴的友誼。我終於明白，關上門固然能獲得一時的寧靜，卻也錯失了門外無限的風景與可能；只有勇敢地推開門，才能迎接生命的陽光，讓心靈在廣闊的天地間自由翱翔。\n\n　　如今，我不再畏懼生命中的每一扇門。我知道，門的背後或許有荊棘，但也必然綻放著玫瑰。我願以勇敢為鑰匙，推開一扇扇未知的大門，去探索、去體驗，去擁抱那無限寬廣的未來。' },
+            { id: 'q3', type: '對話思辨與價值觀', title: '關於「成功」的定義', instructions: '請閱讀以下兩人的對話，並就你的經驗與觀察，寫下你對「成功」的看法。', prompt: '甲：「成功就是考上頂尖大學，找到高薪工作，成為社會的菁英。」\n乙：「不對，成功是能從事自己熱愛的事物，就算平凡，也能每天感到快樂與踏實。」\n\n你比較認同誰的觀點？或者你有其他的看法？', sample: '　　何謂成功？這是一個千古以來叩問人心的難題。有人以功名利祿為尺，丈量成功的刻度；有人以心靈豐盈為秤，衡量生命的重量。對於甲與乙的爭論，我認為成功並非單一的標準答案，而是一場不斷追尋自我價值的旅程。\n\n　　甲的觀點，反映了社會主流的價值觀。考上頂尖學府、躋身菁英之列，確實能帶來物質的豐厚與他人的稱羨。然而，若僅以世俗的成就作為唯一的追求，生命是否會淪為一架追逐名利的機器？我曾見過許多長輩，他們在職場上叱吒風雲，卻在夜深人靜時感到無比空虛。當成功只剩下冰冷的數字與頭銜，心靈的枯竭便會隨之而來。\n\n　　相較之下，我更傾向乙的看法。真正的成功，應當源於對生命純粹的熱愛。我的叔叔是一位平凡的木匠，他沒有顯赫的學歷，也沒有傲人的財富，但他每天都沉浸在木屑的香氣中，用心雕琢每一件作品。我看著他粗糙的雙手撫過木紋時那滿足的笑容，我明白，那就是成功。他或許平凡，卻在自己熱愛的領域中，活出了最不平凡的姿態。踏實與快樂，是任何金錢都無法換取的心靈財富。\n\n　　然而，我認為成功的最高境界，是在甲與乙之間取得平衡。我們不應排斥追求卓越，但更不能在追逐的過程中遺失了初心。成功，是擁有能力去選擇自己熱愛的生活，並在自己選擇的道路上全力以赴。當我們能以世俗的成就為基石，去支撐內心的熱情與夢想時，生命便能綻放出最璀璨的光芒。\n\n　　「成功不是一把量尺，而是一面鏡子。」它映照出的，是我們內心最真實的渴望。願我們都能在人生的道路上，勇敢地追尋屬於自己的成功，活出獨一無二的精彩。' },
+            { id: 'q4', type: '生活觀察與情感', title: '菜市場裡的角落', instructions: '菜市場是充滿生命力的地方，有喧囂的叫賣聲，也有不為人知的故事。請以「菜市場裡的角落」為題，寫下一篇結構完整的文章。', prompt: '請仔細回想你走訪傳統市場的經驗，運用感官摹寫（視覺、聽覺、嗅覺等），寫下一個最令你印象深刻的角落或人物。', sample: '　　清晨的微光尚未完全穿透雲層，城市的某個角落便已甦醒。那是傳統市場，一個揉合了泥土腥味、魚腥味與熟食香氣的地方，一個交織著吆喝聲、討價還價聲與摩托車引擎聲的生命聚落。在這裡，我總喜歡駐足於一個不起眼的角落，看著那裡上演的一幕幕人間煙火。\n\n　　那是一個賣菜的小攤位，蜷縮在市場邊緣的遮雨棚下。攤主是一位年過古稀的老奶奶，她的背脊佝僂得彷彿承載了歲月所有的重量，臉上布滿了如樹皮般深深淺淺的溝壑。攤位上的蔬菜不多，卻被她打理得整整齊齊、青翠欲滴。她不似其他攤販那般聲嘶力竭地叫賣，只是安靜地坐在小板凳上，用一雙長滿厚繭的手，仔細地揀去菜葉上的黃斑。\n\n　　令我印象最深刻的，是她對待顧客的態度。每當有人駐足，她總會抬起頭，漾起一抹慈祥的微笑，眼底閃爍著溫和的光芒。她不會斤斤計較那幾塊錢的零頭，有時甚至會多塞兩根蔥到客人的袋子裡。「多吃點青菜，身體才會好喔！」她那略帶沙啞卻充滿溫暖的嗓音，總能輕易地撫平早晨的匆忙與浮躁。在那個小小的角落裡，買賣不再只是金錢的交易，更是一種人情味的傳遞。\n\n　　在這個講求效率與冰冷數據的時代，超市裡的蔬菜被精美包裝，標價清晰，卻少了那份與泥土連結的溫度。而老奶奶的菜攤，雖然簡陋，卻散發著強韌的生命力與淳樸的善意。她用一輩子的光陰，堅守著這個小小的角落，用最樸實的方式，演繹著生活的堅韌與溫柔。\n\n　　菜市場裡的角落，藏著最真實的生活百態。老奶奶的身影，宛如一幅歷經風霜卻依然溫暖的畫作，深深地烙印在我的腦海裡，提醒著我在喧囂的世界中，莫忘那份最質樸的人情與溫度。' },
+            { id: 'q5', type: '個人反思與成長', title: '那一次，我選擇了放棄', instructions: '放棄不一定代表失敗，有時是為了更好的前進或保護自己。請以「那一次，我選擇了放棄」為題，寫下你的經驗與體悟。', prompt: '我們總是被教導「永不放棄」，但在你的生命經驗中，是否曾有過「選擇放棄」的時刻？這個決定帶給你什麼影響？', sample: '　　「堅持到底，永不放棄」是自幼便被師長反覆鐫刻在心中的座右銘。在我的認知裡，放棄是弱者的代名詞，是面對挑戰時的懦弱退縮。然而，生命中總有一些時刻，教導我們：有時，勇敢地選擇放棄，比盲目的堅持更需要智慧與勇氣。\n\n　　那是我國一時的田徑隊選拔。一直夢想能在田徑場上馳騁的我，為了入選校隊，每天清晨天未亮便在操場上揮灑汗水。起初，我的成績突飛猛進，但漸漸地，我發現自己遭遇了瓶頸。無論我如何加倍訓練，秒數始終停滯不前，甚至因為過度訓練而導致阿基里斯腱發炎。每踏出一步，腳跟傳來的刺痛都在警告我：我的身體已經達到了極限。\n\n　　面對即將到來的最終選拔，我陷入了天人交戰。一邊是長久以來的夢想與不甘心，另一邊是醫生嚴厲的警告與身體的哀鳴。我曾在夜裡獨自落淚，痛恨自己的無能為力。但在一次深談中，教練告訴我：「放棄這條跑道，不代表你失去了整片天空。懂得在適當的時候轉彎，才是真正的成熟。」這番話如醍醐灌頂，讓我恍然大悟：盲目的堅持只會帶來更大的傷害，而學會放下，才能騰出雙手擁抱其他可能。\n\n　　最終，我選擇了退出選拔，接受了治療。那段休養的日子裡，我將原本用於訓練的時間投入到寫作中。令人驚訝的是，我在文字的世界裡找到了另一片廣闊的天地，我的文章甚至在校刊上獲得了刊登。我這才明白，那次的放棄，並非失敗的終點，而是另一個美好起點的開端。\n\n　　放棄，不是舉手投降，而是一種沉澱後的生命轉向。它讓我們學會誠實面對自己的局限，學會在執念與理智之間取得平衡。那一次，我選擇了放棄，卻贏得了更寬廣、更適合自己的人生風景。' },
+            { id: 'q6', type: '資訊解讀與媒體素養', title: '「標題殺」的省思', instructions: '社群媒體上充斥著聳動的標題（如：震驚！太神了！不看會後悔！）。請探討這種現象背後的原因及帶來的影響。', prompt: '【常見標題】：\n◆ 專家證實！每天吃這個，考試絕對拿高分！\n◆ 男孩做了一個動作，全場都驚呆了！\n\n為什麼這類標題會大受歡迎？你曾受騙過嗎？身為現代閱聽人該具備什麼態度？', sample: '　　「震驚！不看絕對後悔！」、「全網瘋傳，真相竟然是這樣……」在資訊如洪流般席捲的網路時代，我們每天的手指滑動間，總會被這類誇張、聳動的「標題殺」所包圍。這些標題猶如披著華麗糖衣的誘餌，精準地捕捉了人們的好奇心與偷窺慾，卻往往在點擊之後，留下一陣被欺騙的空虛與無奈。\n\n　　「標題殺」之所以氾濫，其根源在於注意力經濟的崛起。在這個「流量即金錢」的時代，媒體為了在浩瀚的資訊海中脫穎而出，不惜捨棄了客觀中立的報導原則，轉而以激起閱聽人強烈情緒（如恐懼、憤怒、獵奇）為手段。他們深知，平鋪直敘的事實往往乏人問津，唯有加上「太神了」、「崩潰」等強烈字眼，才能換來點擊率的變現。這種現象，不僅是媒體道德的淪喪，更是對大眾智商的低估。\n\n　　我曾是這種亂象的受害者。某次大考前夕，我被一則「哈佛學霸都在用的記憶法，保證成績翻倍」的標題吸引。我滿懷希望地點擊進入，卻發現內容只是老調重彈的「早睡早起、專心聽講」，毫無新意可言。那一刻，我深感憤怒，不僅是因為浪費了寶貴的時間，更是因為自己的焦慮被有心人士當作了賺取流量的工具。\n\n　　面對層出不窮的「標題殺」，身為現代閱聽人，我們必須培養獨立思考的免疫力。首先，我們應當戒除「反射性點擊」的習慣，在被標題撩撥情緒時，先停下來思考三秒鐘：這是否又是媒體的套路？其次，我們應學會交叉比對資訊來源，不輕信單一報導。更重要的是，當我們不再為那些聳動的標題買單時，失去流量滋養的「標題殺」自然會逐漸萎縮。\n\n　　在資訊喧囂的時代，保持一顆澄明、理智的心，是我們抵禦標題陷阱的最佳武器。唯有拒絕成為流量的盲目跟隨者，我們才能在網路世界中，找到真正有價值的知識綠洲。' },
+            { id: 'q7', type: '抽象概念與情境', title: '空白的筆記本', instructions: '一本空白的筆記本，充滿了無限可能。請以「空白的筆記本」為題，寫下你的感受或想法。', prompt: '如果現在給你一本完全空白的筆記本，你會用來記錄什麼？是未來的夢想、不欲人知的秘密，還是生活中的小確幸？為什麼？', sample: '　　靜靜地躺在書桌上的，是一本尚未被墨跡沾染的空白筆記本。它沒有華麗的封面，也沒有格線的束縛，那純粹的白，宛如初雪覆蓋的大地，散發著寧靜而迷人的氣息。對我而言，這不僅僅是幾十張紙的集合，更是一個充滿無限可能的微型宇宙，等待著我去開拓、去填滿。\n\n　　若這本筆記本屬於我，我不會用它來記錄枯燥的數學公式，也不會用它來羅列繁瑣的待辦事項。我願將它化作一座專屬的「時光博物館」，用以收藏生命中那些微小卻閃耀著微光的美好瞬間。或許是某個清晨，陽光穿透樹葉灑在窗台上的斑駁光影；或許是放學回家的路上，一陣帶著梔子花香的微風；又或許是朋友在失落時遞來的一顆糖果、一個溫暖的擁抱。\n\n　　在步調極快的現代生活中，我們總是不斷地向前奔跑，追逐著世俗定義的成功，卻往往忽略了沿途的風景。我們的心變得粗糙，對生活的感知力逐漸遲鈍。而記錄這些「小確幸」，正是一種溫柔的提醒，提醒我放慢腳步，去細細品味生活中的每一份餽贈。當我將這些片刻化為文字，躍然紙上時，它們便不再是轉瞬即逝的煙火，而是成為了滋養靈魂的永恆養分。\n\n　　此外，這本空白的筆記本也是我與自我對話的秘密花園。在夜深人靜時，我可以在此傾訴那些不為人知的徬徨與脆弱，將內心的雜念化作一行行清晰的字跡。它是一個永遠包容、不會評判的傾聽者，讓我在書寫的過程中，逐漸理清思緒，找回內心的平靜與力量。\n\n　　一本空白的筆記本，承載著我對生活的熱愛與對自我的探索。每一筆、每一劃，都是生命走過的痕跡。當它最終被填滿時，那將是我青春歲月裡，最獨一無二、最珍貴的篇章。' },
+            { id: 'q8', type: '人際互動與社會關懷', title: '青銀共居的挑戰與契機', instructions: '請針對「年輕人與銀髮族共同居住」的社會議題，提出你的看法。', prompt: '政府推動「青銀共居」，讓沒有血緣關係的年輕人與老人同住。你認為這會產生什麼衝突？又會帶來什麼意想不到的火花？', sample: '　　在人口結構急遽高齡化的臺灣，「青銀共居」作為一種新興的居住模式，正逐漸走入大眾的視野。讓充滿活力的青年與歷經滄桑的長者，跨越血緣的藩籬，在同一個屋簷下共享生活，這不僅是一場解決居住與安養問題的社會實驗，更是一次跨世代心靈的碰撞與對話。\n\n　　不可諱言，青銀共居首當其衝的挑戰，便是價值觀與生活習慣的巨大差異。年輕人習慣於快節奏、網路化且重視個人隱私的生活；而長者則往往保有早睡早起、節儉且渴望陪伴的傳統步調。當「半夜敲擊鍵盤的清脆聲」遇上「清晨播放的收音機廣播」，當「外送速食」遇上「粗茶淡飯」，生活中的微小摩擦極易演變為代溝的鴻溝。若缺乏足夠的包容與溝通，原本立意良善的共居，恐將淪為彼此的負擔。\n\n　　然而，正是這些差異，孕育了青銀共居最珍貴的契機。青年能為長者的生活注入鮮活的泉源。他們可以教導長者使用智慧型手機與遠方親友視訊，讓科技跨越孤獨的圍牆；他們爽朗的笑聲，能驅散空巢期老人的寂寥。反之，長者身上沉澱的生命智慧，亦是青年無價的寶藏。在面對升學或職場的焦慮時，長者一句歷經千帆後的豁達話語，往往能如春風化雨般，撫平青年內心的躁動。\n\n　　我曾看過一部紀錄片，片中的大學生與獨居奶奶共居。起初，他們也曾因生活瑣事爭吵，但後來，奶奶教男大生燉煮一鍋道地的滷肉，男大生則陪奶奶看著老照片回憶往昔。在熱騰騰的飯菜香與悠長的故事中，他們找到了超越年齡的共鳴，成為了彼此生命中沒有血緣的親人。\n\n　　「青銀共居」絕非簡單的物理空間共享，而是一場需要以「同理心」為橋樑的跨世代交融。只要我們願意放下成見，用傾聽代替指責，用包容化解衝突，青銀共居必能激盪出最溫暖的火花，為這日漸冷漠的社會，點亮一盞盞跨越世代的溫情之燈。' },
+            { id: 'q9', type: '個人經歷與成長', title: '從陌生到熟悉', instructions: '請以「從陌生到熟悉」為題，寫下你在學習新事物或適應新環境過程中的經驗。', prompt: '也許是一項新技能，也許是一個新班級。這個從抗拒、摸索到駕輕就熟的過程，帶給你什麼樣的成長？', sample: '　　生命宛如一條川流不息的長河，我們乘著小舟，不斷地駛離熟悉的港灣，航向未知的海域。每一次的啟航，都伴隨著對「陌生」的恐懼與抗拒；而每一次的靠岸，又見證了從陌生到「熟悉」的成長蛻變。對我而言，學習吉他的歷程，便是一場從指尖的刺痛到心靈共鳴的奇妙旅途。\n\n　　初次懷抱著那把木吉他時，它對我來說，就像一個脾氣古怪的陌生人。六根堅硬的鋼弦，毫不留情地在我的指腹上勒出一道道深深的紅印；左手僵硬地按著和弦，右手笨拙地撥弄，發出的卻是如破銅爛鐵般刺耳的噪音。那段日子，挫折感如影隨形，我常常望著紅腫破皮的手指，心中萌生了放棄的念頭。這個陌生的樂器，似乎永遠無法與我產生連結。\n\n　　然而，看著指導老師在弦上輕盈飛舞的手指，以及流淌出如潺潺流水般優美的旋律，我不甘心就此妥協。我開始強迫自己每天面對這個「陌生人」。指尖破皮了，便貼上透氣膠布繼續按壓；長出厚厚的繭後，疼痛逐漸被一種奇妙的踏實感所取代。我反覆練習著C和弦、G和弦的轉換，從最初的磕磕絆絆，到後來能勉強連貫。在一次次的磨合中，我與吉他之間那道無形的冰牆，開始出現了裂縫。\n\n　　真正讓我感受到「熟悉」的，是那個微風徐徐的午後。我閉上雙眼，手指憑著肌肉記憶在琴格上游移，自然而然地彈奏出一首完整的〈小幸運〉。那一刻，琴弦不再是冰冷堅硬的金屬，而是成了我情感的延伸；它不再是個陌生人，而是能聽懂我心事的摯友。這種從生疏到默契的轉變，帶來了無法言喻的成就感。\n\n　　從陌生到熟悉，是一段跨越舒適圈的陣痛期，需要毅力為舟，勇氣為槳。這段歷程教會了我，不要因為眼前的困難而卻步，因為唯有勇敢地擁抱陌生，熬過破繭的痛楚，我們才能收穫熟悉後的甘甜，讓生命的光譜增添更多斑斕的色彩。' },
+            { id: 'q10', type: '現象觀察與思辨', title: '我們這個「快」世代', instructions: '現代人追求速度：速食、快時尚、短影音。請以「我們這個『快』世代」為題，寫下你的觀察與反思。', prompt: '「快」為我們帶來了便利，但我們是否也因此失去了什麼？請具體說明你的看法。', sample: '　　這是一個被按下快轉鍵的時代。我們大口吞嚥著五分鐘出爐的速食，身上穿著一季便淘汰的快時尚服飾，手指在螢幕上不耐煩地滑過只有十五秒的短影音。在「效率」與「速度」的狂熱追逐中，我們這個「快」世代，彷彿搭上了一輛沒有煞車的高鐵，在享受沿途疾馳的快感時，卻也逐漸遺失了靈魂的厚度。\n\n　　「快」確實帶來了前所未有的便利。彈指之間，我們能獲取地球另一端的最新資訊；網購的商品，隔日便能送達家門。然而，這種對速度的盲目崇拜，卻悄悄地腐蝕了我們深刻感知生活的能力。當一切都變得唾手可得，我們失去了等待的耐心，也剝奪了醞釀情感的空間。\n\n　　以閱讀為例，過去的人們願意花上幾個午後，沉浸在一本厚重的小說中，隨著主角的命運起伏而悲喜。如今，我們卻習慣於閱讀「三分鐘看完一部電影」、「懶人包重點整理」。這種碎片化、淺層化的資訊吸收，雖然迅速填補了時間的縫隙，卻無法在腦海中沉澱為智慧。長此以往，我們的思考能力變得扁平，失去了深度批判與獨立反思的韌性。我們看似知道了一切，實則對一切都一知半解。\n\n　　此外，「快世代」也讓人際關係變得速食化。通訊軟體的發達，讓我們能隨時隨地傳送訊息，但那冷冰冰的文字與貼圖，卻往往掩蓋了真實的語氣與溫度。我們習慣了「已讀不回」的焦慮，卻忘記了過去那種期盼一封手寫信件時，心中那份繾綣的浪漫與深情。快速的交友與分離，讓情感變得廉價而易碎。\n\n　　「欲速則不達」，古人的智慧在今日依然震聾發聵。在這個越發喧囂急躁的「快」世代，我們更需要學習「慢」的藝術。慢下來，去細細品味一杯咖啡的香醇；慢下來，去專注聆聽微風拂過樹葉的沙沙聲；慢下來，去好好愛一個人。唯有在慢的從容中，我們才能找回生活的質感，讓靈魂得以在時間的長河中，深深地扎根。' },
+            { id: 'q11', type: '情感記憶與敘事', title: '捨不得', instructions: '面對難以割捨的事物（物品、習慣、關係等），你有什麼體會？請以「捨不得」為題進行寫作。', prompt: '請寫下一次你感到「捨不得」的真實經驗。是什麼讓你猶豫掙扎？最後你學到了什麼？', sample: '　　「捨不得」，這三個字總帶著一絲酸澀與眷戀，輕輕地勾惹著心底最柔軟的角落。在生命的長河中，我們不斷地拾起，也不斷地被迫放下。有時是捨不得一件承載回憶的舊物，有時是捨不得一段漸行漸遠的關係。而最令我刻骨銘心的一次「捨不得」，是向陪伴我童年的老舊鋼琴告別。\n\n　　那是一架外觀斑駁的胡桃木色鋼琴，琴鍵有些泛黃，甚至有幾個音已經略微走調。它是外婆送給我的五歲生日禮物，也是我音樂啟蒙的搖籃。無數個陽光灑落的午後，我坐在琴凳上，笨拙地敲擊著琴鍵，外婆則在一旁笑著打拍子。那架鋼琴，吸附了我的汗水與淚水，也見證了外婆對我深沉的愛。然而，隨著我考上音樂班，需要更專業的演奏琴，這架老鋼琴面臨了被轉送的命運。\n\n　　當搬琴工人將粗壯的繩索套在它身上時，我的心彷彿也被緊緊勒住，眼淚不受控制地潰堤。我捨不得的，不僅僅是一件樂器，更是那段無憂無慮的童年時光，以及如今已滿頭白髮的外婆，當年陪伴我的溫暖記憶。理智告訴我，舊琴的離去是為了成全我更好的音樂之路；但情感上，我卻像個孩子般，自私地想將這份回憶永遠鎖在房間裡。\n\n　　在猶豫與掙扎中，外婆輕輕握住我的手，語重心長地說：「琴雖然送走了，但它帶給妳的音樂底子和快樂，已經永遠留在妳心裡了。學會放手，才能騰出雙手去擁抱新的未來。」外婆的話語如一陣春風，吹散了我心頭的陰霾。是啊，真正的珍惜，不是死死地將形體留在身邊，而是將它賦予的意義內化為前行的力量。\n\n　　那一次的捨不得，讓我上了一堂深刻的生命教育課。我明白了，「捨」與「得」是一體兩面。唯有勇敢地捨去舊有的依戀，我們才能在人生的旅途上，輕裝上陣，迎來更廣闊的天地。如今，每當我坐在新鋼琴前彈奏出流暢的樂章時，我依然會想起那架老鋼琴，只是不再帶有遺憾，而是滿懷著溫柔的感恩。' },
+            { id: 'q12', type: '資訊解讀與哲理', title: '未成功的物品展覽會', instructions: '如果有一個展覽會專門展示「未成功」的物品，你會放進什麼？', prompt: '【展品範例】：落選的科展作品、烤焦的餅乾、送不出去的卡片。\n\n請選擇一樣屬於你的「未成功物品」，描述它的外觀，並說明它對你的深刻意義。', sample: '　　倘若有一座「未成功的物品展覽會」，在琳瑯滿目的展台上，有人展出落選的畫作，有人展出烤焦的餅乾。而我，會選擇將書桌抽屜最深處，那一疊厚厚的、寫滿密密麻麻數學算式的計算紙，鄭重地安放在聚光燈下。它看似雜亂無章的廢紙，卻是我國二那年，為了數學競賽拚搏過的最真實見證。\n\n　　這疊計算紙的外觀毫不討喜。有些紙張的邊緣被汗水洇濕而泛黃捲曲；有些角落布滿了焦慮時用筆尖用力戳出的破洞；更常見的，是一道道被用力劃掉的錯誤算式，錯綜複雜的線條猶如一團解不開的亂麻，訴說著當時思緒的死胡同。每一張紙，都承載著無數個挑燈夜戰的孤寂夜晚，以及無數次在放棄與堅持邊緣徘徊的掙扎。\n\n　　那年，為了證明自己，我毅然報名了難度極高的全縣數學競賽。我捨棄了假日的娛樂，將自己埋首於題海之中。這疊計算紙，見證了我從最初解出難題的狂喜，到後來遭遇瓶頸時的崩潰。然而，現實總是骨感的，比賽結果出爐，我甚至沒有進入複賽。那一刻，這疊曾被我視為「心血結晶」的計算紙，瞬間淪為了無情嘲諷我失敗的「廢紙」。我曾憤怒地想將它們撕毀，卻終究不忍下手。\n\n　　隨著時間推移，當我再次凝視這疊「未成功」的展品時，心中的不甘已悄然轉化為釋然。它讓我明白，成功並非人生的唯一標準，那段為了目標傾盡全力的過程，才是生命中最閃耀的勳章。每一道劃掉的錯誤，都是通往正確解答的必經之路；每一滴滴在紙上的汗水，都澆灌了我不屈不撓的韌性。\n\n　　這疊計算紙，雖然未能為我換來一張金光閃閃的獎狀，卻為我贏得了更珍貴的禮物：面對挫折的勇氣與自我突破的毅力。將它放入「未成功的物品展覽會」，並非為了紀念失敗，而是為了銘記那段曾熱烈燃燒過、奮力拚搏過的青春歲月。因為，所有未成功的曾經，都是鋪就未來坦途的基石。' },
+            { id: 'q13', type: '對話思辨與生活態度', title: '多做多得？', instructions: '社會常鼓勵我們「多做多得」，但有時多做卻可能帶來反效果。請就此議題寫下你的看法。', prompt: '同學甲：「多做可以學到更多經驗，吃虧就是占便宜。」\n同學乙：「多做只會讓自己更累，還容易被當成理所當然。」\n\n結合你的親身經歷，寫下你的體會。', sample: '　　「能者多勞，多做多得」，這句古老的諺語，宛如社會的一套潛規則，不斷地敦促著我們在各個領域中積極表現。然而，在經歷了真實的人際互動與團隊合作後，我逐漸體悟到：「多做」與「多得」之間，並非永遠劃上等號的絕對方程式，它更像是一把雙面刃，考驗著我們的智慧與分寸。\n\n　　不可否認，同學甲的觀點有其價值。在學習的初期，主動承擔額外的任務，確實是累積經驗、拓寬視野的捷徑。記得國二時，班上籌辦園遊會，我自告奮勇攬下了最繁瑣的物資採購與帳目核對。那段日子雖然疲憊不堪，但我卻因此學會了成本控管與與廠商交涉的溝通技巧。這種「多做」，讓我獲得了書本上學不到的實務能力，這無疑是一種珍貴的「多得」。\n\n　　然而，當「多做」跨越了某條隱形的界線，同學乙的擔憂便會真實上演。在一次小組報告中，我為了追求完美，不僅包辦了資料搜集與簡報製作，甚至連同組員的上台講稿都一併代筆。起初，組員們對我讚譽有加，但久而久之，他們習慣了我的大包大攬，變得消極被動，甚至在報告出現瑕疵時，將責任全推卸到我身上。那一次，我的「多做」沒有換來感激，反而換來了身心俱疲與不被尊重的委屈。我成了團隊裡的「濫好人」，這讓我深刻反思，毫無底線的付出，只會寵壞他人，甚至剝奪了他人成長的機會。\n\n　　由此可見，「多做」是否能帶來「多得」，關鍵在於我們是否具備「界線感」與「大局觀」。真正的能者多勞，不是盲目地將所有責任攬在身上，而是在自己能力所及的範圍內，發揮最大的價值；同時，也要懂得適時放手，引導團隊成員共同參與，讓每個人都能在過程中有所成長。\n\n　　「多做多得」是一門深刻的生命哲學。我們應當保有主動付出的熱情，但在奉獻的同時，也要學會溫柔而堅定地守護自己的界線。唯有在利他與愛己之間找到平衡，我們的「多做」，才能真正結出豐碩而甜美的「多得」之果。' },
+            { id: 'q14', type: '圖表判讀與選擇', title: '自由與牢籠', instructions: '籠子裡有兩隻倉鼠。一隻在滾輪上跑得開心，另一隻正試圖推開籠子的門逃出去。', prompt: '【情境思考】：\n安逸的牢籠 vs 未知的自由。\n\n這幅畫面讓你聯想到人類社會中的什麼現象？你會選擇當哪一隻倉鼠？為什麼？', sample: '　　在看似平靜的畫面中，一隻倉鼠在滾輪上不知疲倦地奔跑，享受著安逸的溫飽；另一隻倉鼠則奮力扒著籠子的鐵欄，渴望推開那扇通往未知世界的大門。這幅對比強烈的圖像，宛如一面鏡子，精準地映照出人類社會中，面對「舒適圈」與「未知挑戰」時的兩種截然不同的生命姿態。\n\n　　那隻在滾輪上奔跑的倉鼠，隱喻著社會中多數人的縮影。他們安於現狀，遵循著社會既定的軌道——升學、就業、成家，在日復一日的規律中尋求穩定。不可否認，牢籠內的確提供了遮風避雨的庇護與唾手可得的食糧，在滾輪上奔跑也能獲得短暫的成就感。然而，這種安逸的代價，卻是放棄了探索世界無限可能的機會。他們看似在不斷前進，實則只是在原地打轉，生命的光譜被侷限在狹小的方寸之間，最終可能在溫水煮青蛙的舒適中，消磨了靈魂的銳氣。\n\n　　反觀那隻試圖推開籠門的倉鼠，則象徵著那些不安於室、勇於突破框架的追夢者。籠外的世界或許充滿荊棘與風暴，或許沒有按時供應的飼料，甚至隨時面臨生存的威脅。但他們深知，真正的自由從來不是免費的，它需要以汗水與勇氣作為交換。即使遍體鱗傷，他們也渴望親自去感受泥土的芬芳與陽光的熾烈，因為唯有在無垠的天地間奔跑，生命的價值才能得到最淋漓盡致的展現。\n\n　　若讓我選擇，我願做那隻推開籠門的倉鼠。我的青春不該是一場在滾輪上按部就班的無聊循環。我曾經為了一次全國演說比賽，放棄了許多假日休息的時間，在無數個焦慮的夜晚中反覆修改講稿，承受著巨大的壓力與挫折感。但當我最終站上講台，將自己的觀點傳達給全場觀眾時，那種跨越自我極限的遼闊感，是任何安逸的舒適圈都無法給予的。\n\n　　「生命誠可貴，愛情價更高，若為自由故，兩者皆可拋。」真正的自由，是不被世俗的安逸所囚禁，是擁有選擇自己人生軌跡的權利。我願帶著推開籠門的勇氣，迎向未知的風雨，活出一個不設限、不留遺憾的壯闊人生。' },
+            { id: 'q15', type: '生活觀察與創新', title: '我想開設一家這樣的店', instructions: '開一家店，可能是為了實現夢想，也可能是為了滿足生活中的某種期盼。你想開什麼樣的店？', prompt: '請具體描述你想開的這家店。它賣什麼？店內裝潢如何？為什麼社會需要這樣的一家店？', sample: '　　在城市喧囂的角落，霓虹燈閃爍著冷冽的光芒，人們低頭疾行，臉上寫滿了疲憊與疏離。在這個講求效率與冰冷數據的時代，心靈的歸屬似乎成了奢侈品。若有機會，我想在巷弄深處開設一家名為「時光慢遞」的實體信件咖啡館，為這座匆忙的城市，保留一處可以安放情感的溫柔綠洲。\n\n　　推開「時光慢遞」那扇厚實的橡木門，迎面而來的是混合著手沖咖啡香與淡淡原木氣息的溫暖。店內的裝潢沒有現代工業風的冷硬，而是採用溫潤的復古風格。暖黃色的鎢絲燈泡下，擺放著幾張舒適的絨布沙發與胡桃木書桌。然而，這家店最特別的風景，是一整面佔滿牆壁的「時光信箱」，數以百計的木製小格子，每一個都代表著一個未知的未來。\n\n　　這裡不只販賣醇厚的咖啡與手工司康，更販賣「時間的浪漫」。來到這裡的客人，可以購買一套精美的信紙與火漆印章，在咖啡香中，提筆為未來的自己、遠方的摯友，甚至是素未謀面的陌生人寫下一封實體信件。完成後，將信件投入指定的時光信箱，店家會依照客人指定的日期（或許是一年後，或許是十年後）代為寄出。在這個只需一秒鐘就能發送電子訊息的時代，手寫信的塗改痕跡與紙張觸感，承載了無可取代的深情與重量。\n\n　　我深信，現代社會極度需要這樣一家店。社群媒體看似拉近了距離，實則讓人們陷入了「狂歡中的孤獨」。我們太習慣於即時的回饋，卻失去了等待一封信的耐心與悸動。「時光慢遞」提供了一個讓人慢下來的空間，讓人們在書寫的過程中梳理紛亂的思緒，與自己進行一場深度的對話。當未來的某一天，收到這封穿越時光而來的信件時，那份跨越歲月的感動與驚喜，將是撫慰靈魂的最佳良藥。\n\n　　「時光慢遞」咖啡館，不僅是一門生意，更是一種生活態度的倡議。我期盼它能成為這座冰冷叢林中的一座燈塔，讓人們在這裡找回文字的溫度，重拾等待的美好，讓每一份真摯的情感，都能在時光的醞釀下，散發出最迷人的醇香。' },
+            { id: 'q16', type: '傳統習俗與思辨', title: '在這樣的傳統習俗裡，我看見……', instructions: '從小到大，許多傳統習俗伴隨我們成長。請寫下你對某個習俗的觀察。', prompt: '例如：過年大掃除、端午吃粽子、紅包金額必須是雙數等。\n\n這習俗傳遞了什麼情感？又或者你覺得它有什麼不合時宜之處？', sample: '　　春節的腳步漸近，空氣中開始瀰漫著除舊布新的氣息。在臺灣眾多的傳統習俗中，「過年大掃除」無疑是最令人又愛又恨的一項。每年除夕前夕，家家戶戶總要挽起袖子，將屋內屋外洗刷得一塵不染。在過去，我總視大掃除為一場耗費體力的無謂勞動；然而，隨著年紀漸長，我在這項繁瑣的習俗裡，看見了超越表面清潔的深層情感與文化意涵。\n\n　　「除舊布新」，字面上的意義是清除過去一年的灰塵，迎接新年的到來。在揮汗如雨地擦拭窗戶、整理雜物時，我逐漸體悟到，這其實是一場具象化的「心靈大掃除」。在整理那些積滿灰塵的舊課本、不再合身的舊衣物時，我們同時也在梳理過去一年的回憶與情緒。丟棄那些不再需要的物品，象徵著放下過去的遺憾與失敗；將環境打理得井然有序，則是為了騰出清爽的空間，去承載未來一年的希望與期盼。這種透過外在環境的清理來達成內在心靈淨化的過程，是古人留給我們的生活智慧。\n\n　　更重要的是，在這樣的傳統習俗裡，我看見了「家族凝聚」的強大力量。在現代社會，家人們平時各自忙碌於工作與學業，鮮少有機會共同完成一件耗時耗力的任務。大掃除卻神奇地將全家人栓在一起。爸爸負責清理高處的風扇，媽媽在廚房裡刷洗陳年油垢，而我則負責整理客廳。在分工合作的過程中，伴隨著偶爾的抱怨與互相打趣的笑聲，平日裡疏離的感情被重新拉近。那種共同為一個「家」付出的辛勞與完成後的成就感，是任何昂貴的年夜飯都無法替代的溫馨。\n\n　　然而，習俗也需與時俱進。在崇尚極簡生活的現代，我們或許不必再拘泥於形式上將每一寸地板都刷得發亮，更重要的是傳承「除舊布新」與「家人團聚」的核心精神。與其盲目地勞動，不如藉此機會檢視自己的消費習慣，實踐「斷捨離」，讓生活回歸簡單純粹。\n\n　　在過年大掃除這項傳統習俗裡，我看見了洗滌心靈的哲理，也看見了情感交織的溫度。它不僅是迎接新年的儀式，更是一年一度讓家與心靈重新煥發光彩的珍貴時刻。' },
+            { id: 'q17', type: '社會現象與個人責任', title: '當災難發生時', instructions: '面對近年來全球頻發的天災人禍（如地震、疫情），身為國中生的我們能做什麼？', prompt: '請寫下你在重大災難事件中的所見所聞，以及這對你的人生觀產生了什麼改變。', sample: '　　大地發出低沉的咆哮，劇烈的搖晃撕裂了平靜的午夜，尖叫聲與碎玻璃的聲響交織成令人心悸的交響樂。這是我對那場強烈地震最深刻的記憶。當災難如巨獸般無情地撲向人類脆弱的文明時，我深刻地體會到大自然的威力與生命的無常，同時也在廢墟與淚水中，看見了人性的光輝與身為社會一分子的責任。\n\n　　災難發生的隔天，電視螢幕上不斷播送著災區滿目瘡痍的畫面。倒塌的樓房、焦急尋找親人的家屬，以及穿梭在瓦礫堆中滿身泥濘的搜救人員，那一幕幕怵目驚心的景象，深深震撼了我的心靈。在巨大的天災面前，個人的力量顯得如此微不足道。然而，當我看到來自全國各地的物資如雪片般湧入災區，看到無數志工不眠不休地投入救災，我明白了：災難固然可怕，但人類互助合作的愛與韌性，卻足以穿透最深沉的黑暗。\n\n　　這場災難徹底改變了我的人生觀。過去，我總是將日常的平靜視為理所當然，常為了一次考試的失利或生活中的瑣事而怨天尤人。現在，我懂得珍惜每一個平凡的早晨，感恩每一次與家人的相聚。因為我深知，那些看似枯燥的日常，其實是許多人求之不得的奢望。生命如此脆弱，我們更應當把握當下，好好善待身邊的人。\n\n　　身為一名國中生，在災難面前，我們或許無法像專業救援人員那樣衝鋒陷陣，但我們絕非只能袖手旁觀。我們能做的，是從自身做起，建立正確的防災觀念與應變能力，在危機來臨時保護自己不成為負擔；我們可以省下零用錢，捐給需要幫助的災民；我們更可以在網路上傳遞正確的資訊，用溫暖的文字撫慰人心，拒絕散播恐慌與謠言。\n\n　　災難，是大自然給人類的一場嚴厲考驗。它無情地奪走生命與財產，卻也喚醒了我們對生命的敬畏與對彼此的關愛。當災難發生時，沒有人是一座孤島。只要我們願意伸出援手，將點滴的微光匯聚成炬，便能照亮災區的漫漫長夜，在廢墟中重新播下希望的種子。' },
+            { id: 'q18', type: '情感與物件', title: '抽屜深處的寶物', instructions: '每個人都有不想被別人發現，卻又無比珍視的東西。', prompt: '請以「抽屜深處的寶物」為題，描述這件物品的來歷，以及它為何對你如此重要。', sample: '　　在房間書桌最底層的抽屜裡，靜靜地躺著一個有些泛黃、邊角磨損的鐵製餅乾盒。它沒有精緻的密碼鎖，也沒有華麗的外觀，但在我心中，它卻是比任何璀璨珠寶都要珍貴的無價之寶。輕輕掀開盒蓋，裡面裝的不是什麼稀世珍品，而是一疊厚薄不一、字跡稚嫩的信件，那是爺爺留給我最溫暖的餽贈。\n\n　　我的童年，大半時光是在爺爺家的四合院裡度過的。爺爺是個不苟言笑的退伍軍人，他不擅長用言語表達情感，卻總是用行動默默地守護著我。由於我小時候身體孱弱，時常需要住院治療，那段被消毒水味包裹的蒼白日子裡，最讓我期待的，便是爺爺每週寄來的一封信。那時的通訊軟體尚未普及，爺爺堅持用鋼筆，在印有紅絲線的信紙上，一筆一劃地寫下對我的叮嚀與鼓勵。\n\n　　「小寶，今天院子裡的曇花開了，很香。你要乖乖吃藥，病好了爺爺帶你去看海。」信上的文字樸實無華，甚至偶爾還夾雜著幾個錯別字，但字裡行間透出的深情，卻如同一股暖流，驅散了病房裡的寒意。這些信件，成了我對抗病魔最強大的精神支柱。我將每一封信都視若珍寶，仔細地折好，小心翼翼地收藏在這個鐵盒裡。\n\n　　隨著時光流逝，我逐漸長大，健康活潑，而爺爺卻如一盞即將燃盡的油燈，最終安詳地離開了這個世界。處理爺爺的遺物時，我沒有帶走任何值錢的物品，唯獨將這個鐵盒深深地藏進了我的抽屜。每當我在課業上遭遇挫折，或在人際關係中感到迷茫時，我總會獨自一人，拉開抽屜，輕輕撫摸那些泛黃的信紙。看著那熟悉的字跡，我彷彿又能聽見爺爺那渾厚沙啞的嗓音，感受到他那雙布滿老繭的大手，溫柔地揉著我的頭髮。\n\n　　這個抽屜深處的寶物，沒有市場價值，卻承載了我生命中最純粹的愛與被愛的記憶。它是一座心靈的避風港，也是一座燈塔，在歲月的長河中，時刻提醒著我：無論未來的路有多麼崎嶇，我曾被如此深愛過，我必須帶著這份愛，勇敢且堅韌地走下去。' },
+            { id: 'q19', type: '抽象概念與邏輯', title: '完美的定義', instructions: '這世界上真的有「完美」嗎？請探討「完美」與「缺陷」的關係。', prompt: '有人說「缺陷也是一種美」，你同意嗎？請結合生活實例，論述你對「完美」的看法。', sample: '　　在追求卓越的道路上，「完美」彷彿是懸掛在天際的璀璨星辰，引誘著無數人窮盡一生去追逐。我們渴望完美無瑕的容貌、毫無破綻的成績、圓滿無缺的人生。然而，這世上真的存在絕對的完美嗎？我認為，絕對的完美只是一個虛幻的烏托邦，而真正動人的美，往往潛藏在那些看似遺憾的「缺陷」之中。\n\n　　「水滿則溢，月盈則虧」，大自然早已用其運行的法則昭示了不完美的哲理。一朵永不凋零的塑膠花，即便色彩再鮮豔，也比不上一朵經歷風吹雨打、花瓣邊緣帶著微黃的真花來得有生命力。在藝術的殿堂裡，斷臂的維納斯雕像之所以能成為不朽的經典，正是因為那缺失的雙臂，賦予了觀賞者無限的想像空間。缺陷，並非摧毀美的元凶，反而是一種留白，讓美得以在其中呼吸、延伸。\n\n　　在現實生活中，對「絕對完美」的偏執，往往會成為禁錮心靈的枷鎖。我曾有一位在繪畫上極具天賦的同學，她對自己的作品要求到了苛刻的地步。只要畫面上有一絲筆觸不符心意，她便會將整張畫紙揉毀重畫。長期的壓力下，她失去了作畫的快樂，最終甚至拿不起畫筆。她忘記了，藝術的動人之處不在於精準如機器的線條，而在於情感的自然流露。有時，一抹不經意的暈染，一個看似失誤的飛白，反而能成就一幅作品獨特的靈魂。\n\n　　「萬物皆有裂痕，那是光照進來的地方。」這句名言深刻地詮釋了缺陷的價值。正是因為我們不完美，所以我們才擁有進步的空間，才有渴望成長的動力；正是因為彼此都有缺陷，人類才需要互相理解、互相包容，進而產生溫暖的羈絆。如果一切都已達到完美的頂峰，生命將如同一潭死水，失去激盪波瀾的可能。\n\n　　真正的完美，不是毫無瑕疵的死寂，而是懂得接納缺陷的包容，是在不完美中依然努力綻放的姿態。當我們學會擁抱自己的缺點，欣賞生活中的不圓滿時，我們才能卸下沉重的包袱，在人生的畫布上，揮灑出屬於自己、雖有裂痕卻無比真實絢爛的色彩。' },
+            { id: 'q20', type: '自我期許與未來', title: '寫給三年後的自己', instructions: '高中三年即將展開，請以信件或散文形式，寫下對未來的期許。', prompt: '你希望三年後的自己具備什麼樣的能力與心態？在邁向未來的道路上，你現在必須做好什麼準備？', sample: '　　展信佳，三年後的我：\n\n　　當你拆開這封信時，想必已是高三的鳳凰花開之際，正站在青春的分水嶺上，迎接著大考的洗禮與成年的加冕。現在的我，正處於國三的兵荒馬亂之中，望著窗外湛藍的天空，心中滿是對你——未來的我的好奇與期盼。我寫下這封信，不只是為了留下青春的印記，更是為了與你定下一個關於成長的契約。\n\n　　我希望三年後的你，已經長成了一個擁有「獨立思考」能力的人。在高中這個更廣闊、更多元的叢林裡，你一定會遇到許多與以往截然不同的價值觀，甚至面臨人云亦云的盲從誘惑。我期許你不要成為隨波逐流的浮萍，而是要做一株深扎於泥土的橡樹。面對紛雜的資訊與他人的評價，希望你能保有批判的眼光，勇敢地發出屬於自己的聲音，哪怕那聲音微弱，也必須是真實且真誠的。\n\n　　除了智慧的增長，我更在乎你是否擁有一顆「強韌且溫柔」的心。高中的課業壓力必定如排山倒海而來，你可能會在無數個熬夜苦讀的夜晚感到挫折與迷茫，甚至經歷幾次痛徹心扉的失敗。但我祈求你，千萬不要被挫折擊垮。請記住，跌倒了，就拍拍身上的灰塵站起來；流淚了，擦乾眼淚後繼續前行。請允許自己有脆弱的權利，但也要具備自我療癒的韌性。同時，在追求卓越的路上，請不要遺失了對周遭事物的溫柔與同理心，善待他人，也善待那個不完美的自己。\n\n　　為了讓你能在三年後綻放出最美的姿態，現在的我必須開始為你鋪路。我正在努力打好學科基礎，培養自律的讀書習慣，因為我知道，沒有今日的汗水，就沒有明日的從容。我也開始廣泛閱讀課外讀物，試圖拓寬視野的邊界，因為我想為你儲備足夠的底蘊，去迎接未來的挑戰。\n\n　　三年後的你，無論是否考上了心目中的理想大學，無論是否成為了別人眼中的閃耀之星，這都不是最重要的。我只希望，當你回首這三年的來時路，你能無愧於心地說：「我已拚盡全力，我活出了自己最喜歡的模樣。」\n\n　　願你眼底有光，心中有愛，無畏風雨，一路向陽。\n\n　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　三年前的你 敬上' }
+        ];
+
+        // State Management
+        window.appState = {
+            currentView: 'login',
+            selectedQuestionId: null,
+            showView: async function(viewId) {
+                if(viewId === 'dashboard' && !currentUserName) {
+                    showToast("請先登入才能訪問此頁面喔！ 🥺", "error"); 
+                    return;
+                }
+                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+                document.getElementById(`${viewId}-view`).classList.remove('hidden');
+                this.currentView = viewId;
+                
+                if (viewId === 'dashboard') {
+                    renderDashboard();
+                    window.scrollTo(0, 0);
+                }
+                if (viewId === 'test') {
+                    await renderTestArea(); 
+                }
+            }
+        };
+
+        // --- API Key Modal Logic ---
+        window.openApiModal = () => {
+            const storedKey = localStorage.getItem('gemini_api_key');
+            if(storedKey) document.getElementById('api-key-input').value = storedKey;
+            document.getElementById('api-key-modal').classList.remove('hidden');
+        };
+        window.closeApiModal = () => document.getElementById('api-key-modal').classList.add('hidden');
+        window.saveApiKey = () => {
+            const key = document.getElementById('api-key-input').value.trim();
+            if(key) {
+                localStorage.setItem('gemini_api_key', key);
+                closeApiModal();
+                showToast('✅ API 金鑰已安全儲存！ 💖', 'success');
+            } else {
+                showToast('請輸入有效的金鑰喔！', 'error');
+            }
+        };
+
+        function updateConnectionStatus(status, text) {
+            const light = document.getElementById('status-light');
+            const txt = document.getElementById('status-text');
+            txt.textContent = text;
+            light.className = 'w-3 h-3 rounded-full shrink-0 ' + 
+                (status === 'loading' ? 'bg-yellow-400 animate-pulse' : 
+                 status === 'success' ? 'bg-green-400' : 'bg-red-400');
+        }
+
+        async function initFirebase() {
+            try {
+                updateConnectionStatus('loading', '連線至資料庫... 🐾');
+                const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+                app = initializeApp(config);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (authError) {
+                    await signInAnonymously(auth);
+                }
+                
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserUid = user.uid;
+                        isFirebaseReady = true;
+                        
+                        listenToGlobalUsers();
+                        await checkAndLoadQuestions(); // 檢查並載入會考題庫
+                        
+                        updateConnectionStatus('success', '資料庫已連線 🌸');
+                    } else {
+                        isFirebaseReady = false;
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+                updateConnectionStatus('error', '連線失敗 💦');
+                showToast('無法連線至資料庫', 'error');
+            }
+        }
+
+        // 檢查雲端是否有題庫，若無則自動匯入 20 題會考預測題
+        async function checkAndLoadQuestions() {
+            questionsStatus = 'loading';
+            try {
+                const qRef = collection(db, 'artifacts', appId, 'public', 'data', COL_QUESTIONS);
+                const qSnap = await getDocs(qRef);
+                
+                if (qSnap.empty) {
+                    // 自動匯入預設題目
+                    console.log("初始化 2027 會考預測題庫...");
+                    const batch = writeBatch(db);
+                    DEFAULT_QUESTIONS.forEach(q => {
+                        const docRef = doc(qRef, q.id);
+                        batch.set(docRef, q);
+                    });
+                    await batch.commit();
+                    questionsData = [...DEFAULT_QUESTIONS];
+                } else {
+                    questionsData = [];
+                    qSnap.forEach(doc => {
+                        questionsData.push({ id: doc.id, ...doc.data() });
+                    });
+                    // 排序
+                    questionsData.sort((a, b) => {
+                        const numA = parseInt(a.id.replace('q', '')) || 0;
+                        const numB = parseInt(b.id.replace('q', '')) || 0;
+                        return numA - numB;
+                    });
+                }
+                
+                questionsStatus = 'loaded';
+                document.getElementById('total-q-count').textContent = questionsData.length;
+            } catch (error) {
+                console.error("Failed to load questions:", error);
+                // 發生權限錯誤時，降級使用本地端 Array
+                questionsData = [...DEFAULT_QUESTIONS];
+                questionsStatus = 'loaded';
+                document.getElementById('total-q-count').textContent = questionsData.length;
+                console.log("已降級使用本地端題庫。");
+            }
+            
+            if (appState.currentView === 'dashboard') {
+                renderDashboard();
+            }
+        }
+
+        function listenToGlobalUsers() {
+            if(!currentUserUid || !isFirebaseReady) return;
+            const globalRef = doc(db, 'artifacts', appId, 'public', 'data', 'TW-Exam-Global', DOC_GLOBAL);
+            
+            onSnapshot(globalRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.users && Array.isArray(data.users)) {
+                        const names = data.users.map(u => typeof u === 'string' ? u : u.name).filter(Boolean);
+                        const uniqueNames = [...new Set(names)].reverse();
+                        renderQuickLogin(uniqueNames);
+                    } else {
+                        renderQuickLogin([]);
+                    }
+                } else {
+                    renderQuickLogin([]);
+                }
+            }, (error) => {
+                console.error("Listen global error:", error);
+                updateConnectionStatus('error', '同步名單失敗');
+            });
+        }
+
+        window.handleLogin = async (nameOverride) => {
+            const nameInput = document.getElementById('login-name').value;
+            const finalName = (nameOverride || nameInput).trim();
+            if (!finalName) return showToast("請輸入您的姓名喔 🥺", "error");
+            if (!isFirebaseReady) return showToast("系統連線中，請稍候... 🐾", "info");
+
+            const loginBtn = document.querySelector('button[onclick="handleLogin()"]');
+            const originalText = loginBtn.innerText;
+            loginBtn.innerText = '登入中... 🚀';
+            loginBtn.disabled = true;
+
+            try {
+                const globalRef = doc(db, 'artifacts', appId, 'public', 'data', 'TW-Exam-Global', DOC_GLOBAL);
+                const globalSnap = await getDoc(globalRef);
+                let users = globalSnap.exists() ? globalSnap.data().users || [] : [];
+                
+                const stringUsers = users.map(u => typeof u === 'string' ? u : u.name).filter(Boolean);
+                if (!stringUsers.includes(finalName)) {
+                    stringUsers.push(finalName);
+                    await setDoc(globalRef, { users: stringUsers }, { merge: true });
+                }
+
+                currentUserName = finalName;
+                document.getElementById('header-user').classList.remove('hidden');
+                document.getElementById('header-user').classList.add('flex');
+                document.getElementById('header-username').textContent = finalName;
+                document.getElementById('dashboard-username').textContent = finalName + " 同學 🌟";
+
+                subscribeToUserData(finalName);
+                appState.showView('dashboard');
+                showToast(`歡迎回來，${finalName}！🌸\n準備好迎接會考寫作挑戰了嗎？💪`, 'success');
+            } catch (e) {
+                console.error("Login Error:", e);
+                showToast("登入失敗，請檢查網路連線後重試 💦。", "error");
+            } finally {
+                loginBtn.innerText = originalText;
+                loginBtn.disabled = false;
+            }
+        };
+
+        function subscribeToUserData(userName) {
+            if (unsubscribeUser) unsubscribeUser();
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', COL_USERS, `user_${userName}`);
+            
+            unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
+                if (docSnap.exists()) {
+                    userProfileData = docSnap.data();
+                    if(!userProfileData.completedDates) userProfileData.completedDates = [];
+                    if(!userProfileData.historyIndex) userProfileData.historyIndex = {};
+                } else {
+                    userProfileData = { historyIndex: {}, completedDates: [] };
+                    await setDoc(userRef, userProfileData);
+                }
+                
+                if(appState.currentView === 'dashboard') renderCalendar();
+            }, (err) => console.error("User data listen error", err));
+        }
+
+        window.logout = () => {
+            currentUserName = null;
+            userProfileData = { historyIndex: {}, completedDates: [] };
+            if(unsubscribeUser) unsubscribeUser();
+            document.getElementById('header-user').classList.add('hidden');
+            document.getElementById('header-user').classList.remove('flex');
+            document.getElementById('login-name').value = '';
+            appState.showView('login');
+            showToast("已登出 👋", "info");
+        };
+
+        function renderQuickLogin(users) {
+            const container = document.getElementById('quick-login-list');
+            if (users.length === 0) {
+                container.innerHTML = '<span class="text-lg text-gray-400 font-medium">尚無紀錄</span>';
+                return;
+            }
+            container.innerHTML = users.map(u => `
+                <button onclick="handleLogin('${u}')" class="bg-sakura-light text-sakura-dark px-5 py-2.5 rounded-full text-lg font-bold hover:bg-pink-100 transition border border-pink-200 shadow-sm flex items-center gap-2 max-w-full truncate">
+                    <i class="fas fa-user text-base shrink-0 text-pink-400"></i> <span class="truncate">${u}</span>
+                </button>
+            `).join('');
+        }
+
+        function renderDashboard() {
+            renderCalendar();
+            const qList = document.getElementById('question-list');
+            
+            if (questionsStatus === 'loading') {
+                qList.innerHTML = '<div class="text-center text-gray-500 py-16"><i class="fas fa-spinner fa-spin text-4xl mb-4 text-sakura-primary"></i><br><span class="text-xl font-bold">正在載入會考趨勢題庫... 🐾</span></div>';
+                return;
+            }
+
+            qList.innerHTML = questionsData.map((q, index) => {
+                const savedIndex = userProfileData.historyIndex?.[q.id];
+                const hasCompleted = savedIndex && savedIndex.hasFeedback;
+                const statusIcon = hasCompleted 
+                    ? `<i class="fas fa-medal text-yellow-400 text-4xl drop-shadow-md" title="已獲取六級分指導 🥇"></i>` 
+                    : `<i class="far fa-circle text-gray-300 text-4xl" title="尚未挑戰"></i>`;
+                
+                return `
+                <div class="flex items-center justify-between p-5 sm:p-6 bg-[#FCF9F9] rounded-2xl border-2 border-gray-100 hover:shadow-md hover:border-pink-300 transition-all cursor-pointer gap-4 sm:gap-5 group" onclick="selectQuestion('${q.id}')">
+                    <div class="flex items-start gap-4 sm:gap-6 flex-1 min-w-0">
+                        <div class="mt-1 shrink-0 transition-transform group-hover:scale-110">${statusIcon}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-extrabold text-gray-800 text-xl sm:text-2xl break-words leading-snug mb-2">第 ${index + 1} 題：${q.title}</div>
+                            <div class="text-base text-sakura-dark bg-sakura-light inline-block px-4 py-1.5 rounded-lg font-bold shadow-sm border border-sakura-base">${q.type}</div>
+                        </div>
+                    </div>
+                    <button class="bg-white border-2 border-sakura-primary text-sakura-primary group-hover:bg-sakura-primary group-hover:text-white w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-colors shadow-sm shrink-0">
+                        <i class="fas fa-pen text-lg sm:text-xl"></i>
+                    </button>
+                </div>
+                `;
+            }).join('');
+        }
+
+        window.changeMonth = (delta) => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        };
+
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            
+            document.getElementById('calendar-month-year').textContent = `${year}年 ${month + 1}月`;
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const calendarBody = document.getElementById('calendar-body');
+            let html = '';
+            
+            for (let i = 0; i < firstDay; i++) {
+                html += `<div class="calendar-day day-empty"></div>`;
+            }
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const isCompleted = userProfileData.completedDates && userProfileData.completedDates.includes(dateString);
+                
+                if(isCompleted) {
+                    html += `<div class="calendar-day day-completed" onclick="openHistoryModal('${dateString}')" title="點擊查看當日紀錄">${i}</div>`;
+                } else {
+                    html += `<div class="calendar-day day-normal">${i}</div>`;
+                }
+            }
+            
+            calendarBody.innerHTML = html;
+        }
+
+        window.openHistoryModal = (dateStr) => {
+            const matches = Object.keys(userProfileData.historyIndex || {}).filter(qId => {
+                const idx = userProfileData.historyIndex[qId];
+                return idx.date === dateStr && idx.hasFeedback;
+            });
+
+            const content = document.getElementById('history-modal-content');
+            document.getElementById('history-modal-title').innerHTML = `<i class="fas fa-book-reader text-sakura-primary"></i> ${dateStr} 練筆紀錄 📖`;
+
+            if(matches.length === 0) {
+                content.innerHTML = '<div class="text-center text-gray-500 text-xl py-12 font-bold">會考戰士，您這天休息中喔！ 🛋️</div>';
+            } else if(matches.length === 1) {
+                showHistoryFeedback(matches[0]);
+            } else {
+                let listHtml = '<div class="space-y-4">';
+                listHtml += '<p class="text-xl text-gray-700 font-bold mb-5">您在這天完成了多項寫作挑戰： 🌟</p>';
+                matches.forEach(qId => {
+                    const q = questionsData.find(x => x.id === qId);
+                    const title = q ? q.title : `未知題目 (${qId})`;
+                    listHtml += `
+                        <button onclick="showHistoryFeedback('${qId}')" class="w-full text-left p-6 border-2 border-gray-100 rounded-2xl hover:bg-sakura-light hover:border-pink-300 transition-all group flex justify-between items-center shadow-sm bg-[#FCF9F9]">
+                            <span class="font-extrabold text-2xl text-gray-800 group-hover:text-sakura-primary transition-colors">${title}</span>
+                            <i class="fas fa-chevron-right text-pink-300 group-hover:text-pink-500 text-xl"></i>
+                        </button>
+                    `;
+                });
+                listHtml += '</div>';
+                content.innerHTML = listHtml;
+            }
+
+            document.getElementById('history-modal').classList.remove('hidden');
+        };
+
+        window.showHistoryFeedback = async (qId) => {
+            const content = document.getElementById('history-modal-content');
+            const q = questionsData.find(x => x.id === qId);
+            const title = q ? q.title : '寫作紀錄';
+            
+            document.getElementById('history-modal-title').innerHTML = `<i class="fas fa-file-alt text-sakura-primary"></i> ${title} - 閱卷解析 🧐`;
+            content.innerHTML = '<div class="text-center py-24"><div class="loader mx-auto mb-6"></div><p class="text-sakura-dark text-xl font-bold">正在向雲端索取您的會考成績單... 💌</p></div>';
+
+            try {
+                const subRef = doc(db, 'artifacts', appId, 'public', 'data', COL_SUBMISSIONS, `${currentUserName}_${qId}`);
+                const subSnap = await getDoc(subRef);
+                
+                if (!subSnap.exists()) {
+                    content.innerHTML = '<div class="text-center text-red-500 py-12 text-2xl font-bold">找不到此紀錄的詳細資料 🥺。</div>';
+                    return;
+                }
+
+                const data = subSnap.data();
+                let html = `
+                    <div class="mb-10 p-8 md:p-10 bg-[#fdfbf7] rounded-3xl border-2 border-sakura-base shadow-inner">
+                        <h4 class="font-extrabold text-gray-800 mb-6 border-b-2 border-gray-200 pb-3 text-2xl"><i class="fas fa-feather-alt mr-3 text-sakura-primary"></i>您的國文作文原稿 📝</h4>
+                        <p class="whitespace-pre-wrap text-gray-800 leading-[2.2] text-xl sm:text-2xl font-serif">${data.draft}</p>
+                    </div>
+                    <div class="flex items-center gap-5 my-10">
+                        <div class="flex-grow h-1 bg-sakura-base rounded-full"></div>
+                        <span class="text-sakura-dark text-2xl font-extrabold"><i class="fas fa-graduation-cap"></i> AI 閱卷委員評分與指導 ✨</span>
+                        <div class="flex-grow h-1 bg-sakura-base rounded-full"></div>
+                    </div>
+                    <div class="markdown-body bg-white p-4">
+                        ${marked.parse(data.feedback)}
+                    </div>
+                    <div class="mt-10 text-center">
+                       <button onclick="closeHistoryModal()" class="px-10 py-4 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-2xl font-bold text-xl transition-colors shadow-sm border border-gray-200">關閉視窗</button>
+                    </div>
+                `;
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = `<div class="text-center text-red-500 py-12 text-2xl font-bold">讀取失敗：${error.message} 💦</div>`;
+            }
+        };
+
+        window.closeHistoryModal = () => {
+            document.getElementById('history-modal').classList.add('hidden');
+        };
+
+        window.selectQuestion = (qId) => {
+            appState.selectedQuestionId = qId;
+            appState.showView('test');
+        };
+
+        window.toggleSample = () => {
+            const sampleDiv = document.getElementById('q-sample');
+            const isHidden = sampleDiv.classList.contains('hidden');
+            if (isHidden) {
+                sampleDiv.classList.remove('hidden');
+                document.getElementById('sample-text').textContent = '收起範文 🙈';
+                document.getElementById('sample-icon').className = 'fas fa-book';
+            } else {
+                sampleDiv.classList.add('hidden');
+                document.getElementById('sample-text').textContent = '觀摩六級分滿分範文 👀✨';
+                document.getElementById('sample-icon').className = 'fas fa-book-reader';
+            }
+        };
+
+        async function renderTestArea() {
+            const q = questionsData.find(x => x.id === appState.selectedQuestionId);
+            if(!q) return;
+
+            document.getElementById('q-title').textContent = q.title;
+            document.getElementById('q-type').textContent = q.type;
+            document.getElementById('q-instructions').textContent = q.instructions;
+            document.getElementById('q-prompt').textContent = q.prompt;
+            
+            // 處理範文
+            const sampleDiv = document.getElementById('q-sample');
+            sampleDiv.classList.add('hidden');
+            document.getElementById('sample-text').textContent = '觀摩六級分滿分範文 👀✨';
+            document.getElementById('sample-icon').className = 'fas fa-book-reader';
+            if(q.sample) {
+                sampleDiv.textContent = q.sample;
+            } else {
+                sampleDiv.textContent = "範文準備中...";
+            }
+            
+            const textarea = document.getElementById('user-answer');
+            const savedIndex = userProfileData.historyIndex?.[q.id];
+            
+            textarea.disabled = true;
+            textarea.value = '正在從雲端同步您的草稿... ☁️';
+            document.getElementById('last-saved').textContent = '';
+            
+            if (savedIndex) {
+                try {
+                    const subRef = doc(db, 'artifacts', appId, 'public', 'data', COL_SUBMISSIONS, `${currentUserName}_${q.id}`);
+                    const subSnap = await getDoc(subRef);
+                    if(subSnap.exists() && subSnap.data().draft) {
+                        textarea.value = subSnap.data().draft;
+                    } else {
+                        textarea.value = '';
+                    }
+                    document.getElementById('last-saved').textContent = `上次作答時間: ${savedIndex.lastUpdate}`;
+                } catch(e) {
+                    textarea.value = '';
+                    console.error("載入草稿失敗", e);
+                }
+            } else {
+                textarea.value = '';
+            }
+            
+            textarea.disabled = false;
+            updateWordCount();
+            window.scrollTo(0, 0);
+        }
+
+        document.getElementById('user-answer').addEventListener('input', updateWordCount);
+        function updateWordCount() {
+            const text = document.getElementById('user-answer').value.replace(/\n/g, ""); // 不計算換行
+            const words = text.length; // 國文計算總字元數
+            document.getElementById('word-count').textContent = `字數: ${words} 字`;
+        }
+
+        window.submitAnswer = async () => {
+            const answer = document.getElementById('user-answer').value.trim();
+            if (answer.length < 50) {
+                showToast("會考作文建議至少 500 字以上。您目前的內容太少，請再多寫一點思辨與細節喔！ 🥺", "error");
+                return;
+            }
+
+            const q = questionsData.find(x => x.id === appState.selectedQuestionId);
+            document.getElementById('ai-loading').classList.remove('hidden');
+            document.getElementById('ai-loading-text').textContent = '正在為您儲存考卷... 💾';
+            
+            try {
+                await saveProgress(answer, null);
+                
+                document.getElementById('ai-loading-text').textContent = 'AI 閱卷委員正在嚴格批改中... 🧐✍️';
+                const feedbackData = await callGeminiAPI(q.title, q.instructions, q.prompt, answer);
+                renderFeedback(feedbackData);
+                
+                document.getElementById('ai-loading-text').textContent = '正在產出您的六級分指導報告... 🖨️✨';
+                await saveProgress(answer, feedbackData);
+                
+                appState.showView('feedback');
+                window.scrollTo(0, 0);
+                showToast("批改完成！朝六級分又邁進了一大步！ 🎉", "success");
+
+            } catch (e) {
+                console.error("Submit Error:", e);
+                if(e.message.includes("400")) {
+                    showToast("批改失敗 (Error 400)\nAPI金鑰無效或被停用，請至右上角設定更新喔 💦。", "error");
+                    setTimeout(openApiModal, 1500);
+                } else if(e.message.includes("403")) {
+                    showToast("批改失敗 (Error 403)\n缺少有效金鑰或權限不足。\n請設定您的 API 金鑰！ 🔑", "error");
+                    setTimeout(openApiModal, 1500);
+                } else if(e.message.includes("429")) {
+                    showToast("批改失敗 (Error 429)\n請求太頻繁，請稍後再試 🥺。", "error");
+                } else {
+                    showToast("批改發生錯誤，請稍後重試 💦。\n" + e.message, "error");
+                }
+            } finally {
+                document.getElementById('ai-loading').classList.add('hidden');
+            }
+        };
+
+        async function saveProgress(draft, feedback) {
+            if(!currentUserName) return;
+            
+            const qId = appState.selectedQuestionId;
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+            const timeStr = now.toLocaleString('zh-TW');
+
+            const subRef = doc(db, 'artifacts', appId, 'public', 'data', COL_SUBMISSIONS, `${currentUserName}_${qId}`);
+            await setDoc(subRef, {
+                draft: draft,
+                feedback: feedback || null,
+                date: dateStr,
+                lastUpdate: timeStr
+            }, { merge: true });
+
+            let newIndex = { ...userProfileData.historyIndex };
+            newIndex[qId] = {
+                lastUpdate: timeStr,
+                date: dateStr,
+                hasFeedback: !!feedback || (newIndex[qId] ? newIndex[qId].hasFeedback : false)
+            };
+
+            let newDates = [...(userProfileData.completedDates || [])];
+            if (feedback && !newDates.includes(dateStr)) {
+                newDates.push(dateStr);
+            }
+
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', COL_USERS, `user_${currentUserName}`);
+            await setDoc(userRef, {
+                historyIndex: newIndex,
+                completedDates: newDates
+            }, { merge: true });
+        }
+
+        async function callGeminiAPI(title, instructions, prompt, userAnswer) {
+            // 國文會考六級分標準提示詞
+            const systemPrompt = `你是一位專業的「台灣國中教育會考國文閱卷委員」兼「寫作指導名師」。
+你的任務是依據「國中教育會考寫作測驗評分規準」（0級分至6級分），嚴格且精準地批改學生的作文。近年會考趨勢著重「圖表判讀、社會觀察、個人思辨與情感轉折」，請特別留意學生是否具備這些能力。
+
+請務必使用「繁體中文」，並嚴格遵守以下的 Markdown 格式輸出報告，不遺漏任何單元：
+
+# 🎯 會考國文寫作專屬指導報告
+同學你好！老師已經仔細閱讀了你的文章。會考作文不僅看文筆，更看重「立意取材」的深度與「個人思辨」的展現。以下是為你量身打造的診斷與升級指南：
+
+## 🏆 1. 綜合評分與總評
+* **預估級分：** [請給出 0-6 的明確級分，例如：5 級分]
+* **老師總評：** (給予整體評價。若有良好思辨請給予肯定，若有不足請溫和點出核心問題)
+
+## 📊 2. 評分規準四大向度分析
+(請嚴格對照 0-6 級分規準進行精準點評)
+### 💡 立意取材：
+(分析：是否切合題旨？舉例是否適切且深入？是否具有深刻的社會觀察或個人獨特見解？)
+### 🏗️ 結構組織：
+(分析：起承轉合是否流暢？段落分配是否得宜？首尾是否有呼應？)
+### ✍️ 遣詞造句：
+(分析：詞彙使用是否精確豐富？修辭（如譬喻、排比、轉化）運用是否生動？句型是否有變化？)
+### 📝 錯別字與格式：
+(分析：若有錯別字、簡體字或標點符號錯誤，請一一條列並更正。若無則給予讚賞)
+
+## 🚀 3. 邁向六級分：深度與結構升級建議
+(針對該生的弱點，提出 2-3 點具體可行的升級建議。例如：如何加深社會議題的反思？如何讓情感轉折更自然？如何避免平鋪直敘？)
+
+## ✨ 4. 佳句賞析與潤飾
+(挑出文中 1-2 個句子，示範如何套用六級分的高階寫作技巧進行改寫)
+* **❌ 你的原句：** (節錄學生原句)
+* **✅ 六級分修辭示範：** (運用高級修辭或更深刻的詞彙改寫)
+* **💡 老師解析：** (說明為什麼這樣改會更好)
+
+## 📖 5. 六級分示範段落 (Polished Paragraph)
+(請挑選學生文章中最核心的一個段落（例如：闡述觀點、抒發情感的高潮處），親自示範如何以「六級分滿分」的水準重寫。示範段落必須展現：深刻的立意、嚴密的邏輯、以及優美純熟的文采。)
+
+## 🖋️ 6. 名言佳句建議與彙整
+(針對學生的作文主題，提供 3-5 句適合用在此類文章的古詩詞、名人名言或優美短句，並簡短說明如何運用於文中，幫助學生擴充寫作素材庫。)`;
+
+            const userMessage = `【題目】：${title}\n【引導說明】：${instructions}\n【題目資訊】：${prompt}\n\n【學生作答內容】：\n${userAnswer}`;
+
+            const activeKey = localStorage.getItem('gemini_api_key') || apiKey;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userMessage }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    temperature: 0.4 // 稍微提高溫度讓示範段落更有文采
+                }
+            };
+
+            let retries = 5;
+            let delay = 1000;
+            
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error(`API HTTP Error: ${response.status}`);
+                    
+                    const result = await response.json();
+                    let textResult = result.candidates[0].content.parts[0].text;
+                    return textResult;
+
+                } catch (e) {
+                    retries--;
+                    if (retries === 0) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        function renderFeedback(markdownData) {
+            const contentContainer = document.getElementById('fb-content');
+            
+            if (!markdownData) {
+                contentContainer.innerHTML = `<div class="p-6 bg-red-50 text-red-700 rounded-xl text-lg font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> 批改報告產出失敗，請重新提交。</div>`;
+                return;
+            }
+
+            contentContainer.innerHTML = marked.parse(markdownData);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initFirebase();
+            updateWordCount();
+        });
+
+    </script>
+</body>
+</html>
