@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌸 會考國文題庫後台管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sakura: {
+                            light: '#FFF5F6',
+                            base: '#F4DDDF',   // 櫻花粉主色
+                            dark: '#D88C9A',   // 較深的粉紅(用於按鈕/重點)
+                            text: '#8C4A54'    // 深粉咖啡色(用於文字)
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-sakura-light min-h-screen p-6 font-sans text-sakura-text">
+    <div class="max-w-5xl mx-auto space-y-6">
+        
+        <!-- 上方：上傳控制區 -->
+        <div class="bg-white p-8 rounded-3xl shadow-lg border-t-8 border-sakura-base relative overflow-hidden">
+            <!-- 裝飾背景 -->
+            <div class="absolute top-[-30px] right-[-20px] text-sakura-base opacity-40 transform rotate-12 pointer-events-none text-9xl">
+                🌸
+            </div>
+
+            <div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b-2 border-sakura-light pb-6 gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-sakura-dark mb-3">🌸 國文會考題庫管理後台 🍡</h1>
+                    <p class="text-gray-600 text-base font-medium">此工具用於將本地端 <code class="bg-sakura-base text-sakura-text px-3 py-1.5 rounded-lg font-mono text-sm border border-pink-200">questionsData</code> 中的最新 20 題會考預測題，同步至 Firebase 雲端資料庫 ☁️✨。</p>
+                </div>
+                <a href="index.html" class="inline-flex items-center gap-2 bg-sakura-base text-sakura-text hover:bg-pink-200 px-6 py-3 rounded-2xl font-bold transition-colors shadow-sm border border-pink-200 shrink-0 transform hover:-translate-y-1">
+                    🚀 前往寫作模擬平台
+                </a>
+            </div>
+            
+            <div class="text-center py-4">
+                <button id="migrate-btn" onclick="startMigration()" class="bg-sakura-dark text-white font-bold text-xl px-10 py-4 rounded-full hover:bg-pink-500 shadow-md transition-all transform hover:-translate-y-1 inline-flex items-center gap-3">
+                    ✨ 覆蓋 / 上傳最新 20 題庫至雲端 💖
+                </button>
+            </div>
+
+            <div id="log-area" class="mt-6 text-left bg-gray-800 text-pink-300 p-5 rounded-2xl h-40 overflow-y-auto font-mono text-sm hidden shadow-inner border-2 border-sakura-base">
+                <!-- Logs will appear here -->
+            </div>
+        </div>
+
+        <!-- 下方：雲端資料檢視區 -->
+        <div class="bg-white p-8 rounded-3xl shadow-lg border-2 border-sakura-light">
+            <div class="flex justify-between items-center mb-6 border-b-2 border-sakura-light pb-5">
+                <h2 class="text-2xl font-bold text-sakura-dark"><i class="fas fa-cloud text-pink-400 mr-2"></i>目前雲端資料庫題庫狀態 🎀</h2>
+                <button onclick="fetchCloudQuestions()" class="text-sm bg-sakura-light text-sakura-text hover:bg-sakura-base px-5 py-2.5 rounded-xl transition-colors font-bold border border-sakura-base flex items-center gap-2">
+                    <i class="fas fa-sync-alt"></i> 重新整理列表 🔄
+                </button>
+            </div>
+
+            <div id="cloud-loading" class="text-center py-12 text-sakura-dark">
+                <i class="fas fa-spinner fa-spin text-4xl mb-4 text-pink-400"></i>
+                <p class="font-bold text-lg">正在從 Firebase 撈取資料中... 🐾</p>
+            </div>
+
+            <div class="overflow-x-auto hidden rounded-2xl border-2 border-sakura-base" id="table-container">
+                <table class="w-full text-left border-collapse bg-white">
+                    <thead>
+                        <tr class="bg-sakura-base text-sakura-text border-b-2 border-pink-200">
+                            <th class="p-4 font-extrabold w-24 text-center">題號 ID 🏷️</th>
+                            <th class="p-4 font-extrabold w-64">會考題型分類 📂</th>
+                            <th class="p-4 font-extrabold">題目名稱 (Title) 📝</th>
+                            <th class="p-4 font-extrabold text-center w-32">雲端狀態 ☁️</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cloud-questions-list" class="divide-y-2 divide-sakura-light">
+                        <!-- 動態插入 -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="cloud-empty" class="hidden text-center py-16 text-sakura-dark bg-sakura-light rounded-2xl border-4 border-dashed border-sakura-base">
+                <div class="text-6xl mb-4">🐰💨</div>
+                <p class="text-2xl font-extrabold text-sakura-text mb-2">雲端題庫空空如也！</p>
+                <p class="text-lg font-medium">請點擊上方的「上傳最新題庫」按鈕來建立會考題庫喔 🌟。</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 更新為您的 Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCan2_Rc26HsLkOPr0i5QrgdjAYyqcigJ0",
+            authDomain: "english-reading-6b506.firebaseapp.com",
+            projectId: "english-reading-6b506",
+            storageBucket: "english-reading-6b506.firebasestorage.app",
+            messagingSenderId: "494747176273",
+            appId: "1:494747176273:web:585487fadb29b2e5e2d770",
+            measurementId: "G-4JD6R9MRPQ"
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gept-writing-mock-v1'; 
+        // 必須與前台 index.html 抓取的 Collection 保持完全一致
+        const COL_QUESTIONS = 'TW-Exam-Questions-2027'; 
+        
+        let app, db, auth;
+
+        // =========================================================
+        // ✍️ 國文會考 20 題庫清單 (符合歷屆圖表、思辨、社會現象趨勢)
+        // =========================================================
+        const questionsData = [
+            { id: 'q1', type: '圖表判讀與社會觀察', title: '我們與惡的距離：網路酸民現象', instructions: '請閱讀下方圖表資訊，寫下你對「網路酸民現象」的理解，並結合個人生活經驗，提出你的看法。', prompt: '【調查數據顯示】：\n在近三年的網路霸凌事件中，有高達 65% 的攻擊者表示「只是覺得好玩或跟風」，20% 表示「為了伸張正義」，僅有 15% 是與被害者有私人恩怨。\n\n請說明你對此數據的解讀，並寫下你的感受與想法。' },
+            { id: 'q2', type: '情境想像與生命體悟', title: '門', instructions: '「門」可以是有形的阻隔，也可以是無形的心防；打開門可能是迎接新世界，關上門可能是尋求庇護。請以「門」為題，寫下你的經驗、感受或想法。', prompt: '每個人生命中都會面對無數扇門。有些門充滿未知，有些門給人安全感。請結合具體經驗，寫出你面對某一扇「門」時的故事。' },
+            { id: 'q3', type: '對話思辨與價值觀', title: '關於「成功」的定義', instructions: '請閱讀以下兩人的對話，並就你的經驗與觀察，寫下你對「成功」的看法。', prompt: '甲：「成功就是考上頂尖大學，找到高薪工作，成為社會的菁英。」\n乙：「不對，成功是能從事自己熱愛的事物，就算平凡，也能每天感到快樂與踏實。」\n\n你比較認同誰的觀點？或者你有其他的看法？' },
+            { id: 'q4', type: '生活觀察與情感', title: '菜市場裡的角落', instructions: '菜市場是充滿生命力的地方，有喧囂的叫賣聲，也有不為人知的故事。請以「菜市場裡的角落」為題，寫下一篇結構完整的文章。', prompt: '請仔細回想你走訪傳統市場的經驗，運用感官摹寫（視覺、聽覺、嗅覺等），寫下一個最令你印象深刻的角落或人物。' },
+            { id: 'q5', type: '個人反思與成長', title: '那一次，我選擇了放棄', instructions: '放棄不一定代表失敗，有時是為了更好的前進或保護自己。請以「那一次，我選擇了放棄」為題，寫下你的經驗與體悟。', prompt: '我們總是被教導「永不放棄」，但在你的生命經驗中，是否曾有過「選擇放棄」的時刻？這個決定帶給你什麼影響？' },
+            { id: 'q6', type: '資訊解讀與媒體素養', title: '「標題殺」的省思', instructions: '社群媒體上充斥著聳動的標題（如：震驚！太神了！不看會後悔！）。請探討這種現象背後的原因及帶來的影響。', prompt: '【常見標題】：\n◆ 專家證實！每天吃這個，考試絕對拿高分！\n◆ 男孩做了一個動作，全場都驚呆了！\n\n為什麼這類標題會大受歡迎？你曾受騙過嗎？身為現代閱聽人該具備什麼態度？' },
+            { id: 'q7', type: '抽象概念與情境', title: '空白的筆記本', instructions: '一本空白的筆記本，充滿了無限可能。請以「空白的筆記本」為題，寫下你的感受或想法。', prompt: '如果現在給你一本完全空白的筆記本，你會用來記錄什麼？是未來的夢想、不欲人知的秘密，還是生活中的小確幸？為什麼？' },
+            { id: 'q8', type: '人際互動與社會關懷', title: '青銀共居的挑戰與契機', instructions: '請針對「年輕人與銀髮族共同居住」的社會議題，提出你的看法。', prompt: '政府推動「青銀共居」，讓沒有血緣關係的年輕人與老人同住。你認為這會產生什麼衝突？又會帶來什麼意想不到的火花？' },
+            { id: 'q9', type: '個人經歷與成長', title: '從陌生到熟悉', instructions: '請以「從陌生到熟悉」為題，寫下你在學習新事物或適應新環境過程中的經驗。', prompt: '也許是一項新技能，也許是一個新班級。這個從抗拒、摸索到駕輕就熟的過程，帶給你什麼樣的成長？' },
+            { id: 'q10', type: '現象觀察與思辨', title: '我們這個「快」世代', instructions: '現代人追求速度：速食、快時尚、短影音。請以「我們這個『快』世代」為題，寫下你的觀察與反思。', prompt: '「快」為我們帶來了便利，但我們是否也因此失去了什麼？請具體說明你的看法。' },
+            { id: 'q11', type: '情感記憶與敘事', title: '捨不得', instructions: '面對難以割捨的事物（物品、習慣、關係等），你有什麼體會？請以「捨不得」為題進行寫作。', prompt: '請寫下一次你感到「捨不得」的真實經驗。是什麼讓你猶豫掙扎？最後你學到了什麼？' },
+            { id: 'q12', type: '資訊解讀與哲理', title: '未成功的物品展覽會', instructions: '如果有一個展覽會專門展示「未成功」的物品，你會放進什麼？', prompt: '【展品範例】：落選的科展作品、烤焦的餅乾、送不出去的卡片。\n\n請選擇一樣屬於你的「未成功物品」，描述它的外觀，並說明它對你的深刻意義。' },
+            { id: 'q13', type: '對話思辨與生活態度', title: '多做多得？', instructions: '社會常鼓勵我們「多做多得」，但有時多做卻可能帶來反效果。請就此議題寫下你的看法。', prompt: '同學甲：「多做可以學到更多經驗，吃虧就是占便宜。」\n同學乙：「多做只會讓自己更累，還容易被當成理所當然。」\n\n結合你的親身經歷，寫下你的體會。' },
+            { id: 'q14', type: '圖表判讀與選擇', title: '自由與牢籠', instructions: '籠子裡有兩隻倉鼠。一隻在滾輪上跑得開心，另一隻正試圖推開籠子的門逃出去。', prompt: '【情境思考】：\n安逸的牢籠 vs 未知的自由。\n\n這幅畫面讓你聯想到人類社會中的什麼現象？你會選擇當哪一隻倉鼠？為什麼？' },
+            { id: 'q15', type: '生活觀察與創新', title: '我想開設一家這樣的店', instructions: '開一家店，可能是為了實現夢想，也可能是為了滿足生活中的某種期盼。你想開什麼樣的店？', prompt: '請具體描述你想開的這家店。它賣什麼？店內裝潢如何？為什麼社會需要這樣的一家店？' },
+            { id: 'q16', type: '傳統習俗與思辨', title: '在這樣的傳統習俗裡，我看見……', instructions: '從小到大，許多傳統習俗伴隨我們成長。請寫下你對某個習俗的觀察。', prompt: '例如：過年大掃除、端午吃粽子、紅包金額必須是雙數等。\n\n這習俗傳遞了什麼情感？又或者你覺得它有什麼不合時宜之處？' },
+            { id: 'q17', type: '社會現象與個人責任', title: '當災難發生時', instructions: '面對近年來全球頻發的天災人禍（如地震、疫情），身為國中生的我們能做什麼？', prompt: '請寫下你在重大災難事件中的所見所聞，以及這對你的人生觀產生了什麼改變。' },
+            { id: 'q18', type: '情感與物件', title: '抽屜深處的寶物', instructions: '每個人都有不想被別人發現，卻又無比珍視的東西。', prompt: '請以「抽屜深處的寶物」為題，描述這件物品的來歷，以及它為何對你如此重要。' },
+            { id: 'q19', type: '抽象概念與邏輯', title: '完美的定義', instructions: '這世界上真的有「完美」嗎？請探討「完美」與「缺陷」的關係。', prompt: '有人說「缺陷也是一種美」，你同意嗎？請結合生活實例，論述你對「完美」的看法。' },
+            { id: 'q20', type: '自我期許與未來', title: '寫給三年後的自己', instructions: '高中三年即將展開，請以信件或散文形式，寫下對未來的期許。', prompt: '你希望三年後的自己具備什麼樣的能力與心態？在邁向未來的道路上，你現在必須做好什麼準備？' }
+        ];
+
+        function log(msg) {
+            const logArea = document.getElementById('log-area');
+            logArea.classList.remove('hidden');
+            logArea.innerHTML += `<div class="mb-1">🐾 ${msg}</div>`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 登入初始化
+        async function init() {
+            const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+            app = initializeApp(config);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+            
+            // 登入完成後，自動去雲端撈出現有資料來顯示
+            fetchCloudQuestions();
+        }
+
+        // 把本地陣列上傳到雲端
+        window.startMigration = async () => {
+            const btn = document.getElementById('migrate-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 努力上傳中，請稍候喔 🏃‍♀️💨...';
+            btn.classList.replace('bg-sakura-dark', 'bg-gray-400');
+            btn.classList.replace('hover:bg-pink-500', 'hover:bg-gray-500');
+            
+            try {
+                let count = 0;
+                for (const q of questionsData) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', COL_QUESTIONS, q.id);
+                    await setDoc(docRef, q);
+                    count++;
+                    log(`✅ 成功同步: ${q.id} - ${q.title} 🌸`);
+                }
+
+                log(`🎉 耶！同步大成功！總共更新了 ${count} 題會考模擬題 🎊。`);
+                btn.innerHTML = '✅ 題庫同步完成！太棒了 🥳';
+                btn.classList.replace('bg-gray-400', 'bg-green-400');
+                btn.classList.replace('hover:bg-gray-500', 'hover:bg-green-500');
+                
+                // 上傳完自動重撈一次列表更新畫面
+                setTimeout(() => {
+                    fetchCloudQuestions();
+                    // 恢復按鈕原本的樣子
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '✨ 覆蓋 / 上傳最新 20 題庫至雲端 💖';
+                        btn.classList.replace('bg-green-400', 'bg-sakura-dark');
+                        btn.classList.replace('hover:bg-green-500', 'hover:bg-pink-500');
+                    }, 3000);
+                }, 1000);
+
+            } catch (error) {
+                console.error(error);
+                log(`<span class="text-red-400">❌ 發生錯誤啦: ${error.message} 🥺</span>`);
+                btn.innerHTML = '❌ 上傳失敗，請重試 💦';
+                btn.classList.replace('bg-gray-400', 'bg-red-400');
+                btn.classList.replace('hover:bg-gray-500', 'hover:bg-red-500');
+                btn.disabled = false;
+            }
+        };
+
+        // 從雲端撈資料顯示在表格中
+        window.fetchCloudQuestions = async () => {
+            document.getElementById('cloud-loading').classList.remove('hidden');
+            document.getElementById('table-container').classList.add('hidden');
+            document.getElementById('cloud-empty').classList.add('hidden');
+            
+            try {
+                const qRef = collection(db, 'artifacts', appId, 'public', 'data', COL_QUESTIONS);
+                const qSnap = await getDocs(qRef);
+                
+                if (qSnap.empty) {
+                    document.getElementById('cloud-loading').classList.add('hidden');
+                    document.getElementById('cloud-empty').classList.remove('hidden');
+                    return;
+                }
+
+                let cloudData = [];
+                qSnap.forEach(doc => {
+                    cloudData.push({ id: doc.id, ...doc.data() });
+                });
+
+                // 排序
+                cloudData.sort((a, b) => {
+                    const numA = parseInt(a.id.replace('q', '')) || 0;
+                    const numB = parseInt(b.id.replace('q', '')) || 0;
+                    return numA - numB;
+                });
+
+                // 渲染表格
+                const tbody = document.getElementById('cloud-questions-list');
+                tbody.innerHTML = cloudData.map(q => `
+                    <tr class="hover:bg-sakura-light transition-colors">
+                        <td class="p-4 border-b-2 border-pink-100 font-mono text-sakura-dark text-center font-bold">${q.id}</td>
+                        <td class="p-4 border-b-2 border-pink-100"><span class="bg-sakura-base text-sakura-text text-sm px-3 py-1.5 rounded-lg font-extrabold shadow-sm">${q.type}</span></td>
+                        <td class="p-4 border-b-2 border-pink-100 font-bold text-gray-700 text-lg">${q.title}</td>
+                        <td class="p-4 border-b-2 border-pink-100 text-center"><span class="text-2xl" title="已成功載入雲端">💖</span></td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('cloud-loading').classList.add('hidden');
+                document.getElementById('table-container').classList.remove('hidden');
+
+            } catch (error) {
+                console.error("撈取資料失敗", error);
+                document.getElementById('cloud-loading').innerHTML = `<p class="text-red-500 font-bold text-lg"><i class="fas fa-times-circle"></i> 讀取失敗，請確認權限設定喔 😢。</p>`;
+            }
+        };
+
+        // 啟動程式
+        init();
+
+    </script>
+</body>
+</html>

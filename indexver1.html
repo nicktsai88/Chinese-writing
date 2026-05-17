@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌸 國中教育會考 國文寫作模擬平台 📝</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sakura: {
+                            light: '#FFF0F3',   // 極淺粉背景
+                            base: '#F4DDDF',    // 櫻花粉主色
+                            primary: '#F472B6', // 亮粉 (互動元件)
+                            dark: '#D88C9A',    // 稍暗的粉紅
+                            text: '#83384A'     // 深粉棕色 (文字)
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { font-family: '微軟正黑體', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #FFF0F3; color: #83384A; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-size: 1rem; transition: all 0.2s ease; }
+        .day-header { font-weight: bold; color: #D88C9A; text-align: center; padding: 4px; font-size: 1.1rem; }
+        .day-empty { background-color: transparent; }
+        .day-normal { background-color: #F4DDDF; color: #83384A; }
+        
+        /* 完成的日期樣式：加入互動性與點擊游標 */
+        .day-completed { background-color: #F472B6; color: white; font-weight: bold; position: relative; box-shadow: 0 3px 6px rgba(244, 114, 182, 0.3); cursor: pointer; }
+        .day-completed:hover { background-color: #DB2777; transform: translateY(-2px); box-shadow: 0 5px 10px rgba(244, 114, 182, 0.4); }
+        .day-completed::after { content: '★'; position: absolute; top: 3px; right: 4px; font-size: 0.75rem; color: #FEF08A; }
+        
+        .loader { border: 4px solid #F4DDDF; border-top: 4px solid #F472B6; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #F4DDDF; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb { background: #F9A8D4; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #F472B6; }
+
+        /* 防止英文字過長不換行導致跑版 */
+        .break-words { word-break: break-word; overflow-wrap: break-word; }
+
+        /* --- Markdown 報告專用渲染樣式 (為大螢幕閱讀加強) --- */
+        .markdown-body { color: #83384A; line-height: 1.8; font-size: 1.1rem; }
+        @media (min-width: 768px) { .markdown-body { font-size: 1.2rem; } }
+        .markdown-body h1 { font-size: 1.75rem; font-weight: bold; color: #D88C9A; margin: 2rem 0 1rem; border-bottom: 2px solid #F4DDDF; padding-bottom: 0.5rem; }
+        .markdown-body h1:first-child { margin-top: 0; }
+        .markdown-body h2 { font-size: 1.5rem; font-weight: bold; color: #BE185D; margin: 1.75rem 0 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .markdown-body h3 { font-size: 1.3rem; font-weight: bold; color: #F472B6; margin: 1.5rem 0 0.5rem; }
+        .markdown-body h4 { font-size: 1.15rem; font-weight: bold; color: #83384A; margin: 1.25rem 0 0.5rem; background-color: #F4DDDF; padding: 0.35rem 0.85rem; border-radius: 0.5rem; display: inline-block; }
+        .markdown-body p { margin-bottom: 1.2rem; }
+        .markdown-body ul { list-style-type: none; padding-left: 0.5rem; margin-bottom: 1.2rem; }
+        .markdown-body li { margin-bottom: 0.75rem; }
+        .markdown-body strong { font-weight: 700; color: #b91c1c; } /* 凸顯錯誤或重點 */
+        .markdown-body blockquote { border-left: 5px solid #F472B6; background-color: #FFF0F3; padding: 1.5rem; margin: 1.5rem 0; border-radius: 0 0.5rem 0.5rem 0; font-style: italic; color: #83384A; font-size: 1.35rem; line-height: 1.9; }
+        .markdown-body blockquote p:last-child { margin-bottom: 0; }
+        
+        /* Table Styles */
+        .markdown-body table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; background-color: white; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .markdown-body th, .markdown-body td { border: 1px solid #FBCFE8; padding: 1rem 1.25rem; text-align: left; }
+        .markdown-body th { background-color: #F4DDDF; font-weight: bold; color: #BE185D; white-space: nowrap; font-size: 1.1rem; }
+        .markdown-body tr:nth-child(even) { background-color: #FFF0F3; }
+        .markdown-body hr { border: 0; border-top: 2px dashed #F9A8D4; margin: 2.5rem 0; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3"></div>
+
+    <!-- Top Navigation -->
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="w-[96%] xl:w-[98%] max-w-none mx-auto px-4 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3 shrink-0">
+                <i class="fas fa-feather-alt text-sakura-primary text-2xl sm:text-3xl"></i>
+                <h1 class="text-xl sm:text-2xl font-bold text-sakura-text cursor-pointer truncate" onclick="appState.showView('dashboard')">🌸 國文寫作模擬平台 📝</h1>
+            </div>
+            <div class="flex items-center gap-4 sm:gap-6 shrink-0">
+                <div id="connection-status" class="flex items-center gap-2 text-sm sm:text-base">
+                    <div class="w-3 h-3 rounded-full bg-gray-400" id="status-light"></div>
+                    <span id="status-text" class="text-gray-600 hidden md:inline">初始化中... 🐾</span>
+                </div>
+                <div id="header-user" class="hidden items-center gap-2 font-medium text-sakura-dark bg-sakura-base px-4 py-2 rounded-full text-base sm:text-lg">
+                    <i class="fas fa-user-circle text-xl"></i>
+                    <span id="header-username" class="max-w-[100px] sm:max-w-[200px] truncate"></span>
+                    <button onclick="openApiModal()" class="ml-2 text-gray-500 hover:text-pink-500" title="API 金鑰設定"><i class="fas fa-cog"></i></button>
+                    <button onclick="logout()" class="ml-2 text-red-400 hover:text-red-600" title="登出"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow w-[96%] xl:w-[98%] max-w-none mx-auto px-4 py-8 relative flex flex-col items-center">
+
+        <!-- API Key Modal -->
+        <div id="api-key-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[60] backdrop-blur-sm px-4">
+            <div class="bg-white p-8 rounded-2xl shadow-xl max-w-lg w-full border-2 border-pink-200 max-h-[90vh] overflow-y-auto">
+                <h3 class="text-2xl font-bold text-sakura-dark mb-4"><i class="fas fa-shield-alt text-pink-400 mr-3"></i>安全設定 API 金鑰 🔑</h3>
+                <p class="text-base text-gray-600 mb-6 leading-relaxed">
+                    為了防止金鑰外洩，請將您的 API 金鑰輸入於此。<br>
+                    <span class="font-bold text-pink-600 mt-2 block">此金鑰將只會安全地儲存於您的瀏覽器 (Local Storage) 中，不會寫入公開的程式碼喔！💖</span>
+                </p>
+                <input type="text" id="api-key-input" class="w-full px-5 py-3 text-lg rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-sakura-primary bg-sakura-light mb-6" placeholder="請貼上您的 API Key (AIzaSy...)">
+                <div class="flex justify-end gap-4">
+                    <button onclick="closeApiModal()" class="px-6 py-3 text-lg text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-medium">關閉</button>
+                    <button onclick="saveApiKey()" class="px-6 py-3 text-lg bg-sakura-primary text-white hover:bg-pink-600 rounded-xl transition-colors font-medium shadow-md">儲存並使用 ✨</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Content Modal -->
+        <div id="history-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[70] backdrop-blur-sm px-2 md:px-4">
+            <div class="bg-white rounded-2xl w-[98%] max-w-none h-[92vh] flex flex-col shadow-2xl overflow-hidden border-2 border-pink-200">
+                <div class="p-5 border-b border-pink-200 flex justify-between items-center bg-pink-50 shrink-0">
+                    <h3 class="text-2xl font-bold text-sakura-dark flex items-center gap-3" id="history-modal-title">
+                        <i class="far fa-calendar-alt"></i> 練習紀錄 📖
+                    </h3>
+                    <button onclick="closeHistoryModal()" class="text-gray-500 hover:text-red-500 text-4xl leading-none">&times;</button>
+                </div>
+                <div id="history-modal-content" class="p-6 md:p-10 overflow-y-auto flex-grow bg-white">
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. Login View -->
+        <div id="login-view" class="max-w-xl w-full bg-white p-10 rounded-3xl shadow-lg border-2 border-sakura-base view-section mt-12 relative overflow-hidden">
+            <!-- 裝飾背景 -->
+            <div class="absolute top-[-40px] right-[-30px] text-sakura-base opacity-40 transform rotate-12 text-9xl pointer-events-none">
+                🌸
+            </div>
+            
+            <div class="relative z-10">
+                <h2 class="text-3xl font-bold text-center text-sakura-dark mb-4">🌸 國文寫作模擬平台 📝</h2>
+                
+                <!-- 激勵語錄 -->
+                <div class="bg-gradient-to-r from-pink-50 to-rose-50 p-5 rounded-2xl border border-pink-200 mb-8 text-center shadow-sm">
+                    <p class="text-xl text-rose-800 font-bold mb-2 flex items-center justify-center gap-2">
+                        <i class="fas fa-mountain text-pink-500"></i> 目標 2027 會考 5A6級分！ 🏆
+                    </p>
+                    <p class="text-base text-rose-700 font-medium">「穩紮穩打，筆下生花。每一次的落筆，都是邁向六級分高峰的階梯！ ✨」</p>
+                </div>
+                
+                <div class="mb-8">
+                    <label class="block text-lg font-bold text-gray-700 mb-3">請輸入您的姓名登入： 🙋‍♀️🙋‍♂️</label>
+                    <div class="flex gap-3">
+                        <input type="text" id="login-name" class="flex-grow px-5 py-3 text-lg w-full rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-sakura-primary bg-sakura-light" placeholder="例如：王小明">
+                        <button onclick="handleLogin()" class="bg-sakura-primary text-white px-8 py-3 text-lg rounded-xl hover:bg-pink-600 transition-colors shadow-md font-bold shrink-0">登入 🚀</button>
+                    </div>
+                </div>
+
+                <div class="border-t border-pink-100 pt-8">
+                    <h3 class="text-base font-bold text-gray-500 mb-4 flex items-center gap-2">
+                        <i class="fas fa-bolt text-yellow-500 text-lg"></i> 快速登入 (點擊頭像) ⚡
+                    </h3>
+                    <div id="quick-login-list" class="flex flex-wrap gap-3">
+                        <div class="text-base text-gray-400 italic">載入中... 🐾</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Dashboard View -->
+        <div id="dashboard-view" class="hidden view-section w-full">
+            <div class="flex flex-col md:flex-row gap-8 w-full">
+                <!-- Left: Calendar Profile -->
+                <div class="w-full md:w-[35%] xl:w-[30%] bg-white p-8 rounded-3xl shadow-md border-2 border-sakura-base h-fit shrink-0">
+                    <div class="text-center mb-8">
+                        <div class="w-24 h-24 bg-sakura-base rounded-full mx-auto flex items-center justify-center text-sakura-primary text-4xl mb-4 shadow-inner">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold break-words text-sakura-dark" id="dashboard-username">使用者</h2>
+                        <p class="text-base text-gray-500 mt-2 font-medium">會考倒數準備中 🚀✨</p>
+                    </div>
+                    
+                    <div class="border-t border-pink-100 pt-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-lg text-sakura-text flex items-center gap-2"><i class="far fa-calendar-check text-pink-400"></i> 寫作日曆 📅</h3>
+                            <div class="flex items-center gap-3 bg-pink-100 px-3 py-1.5 rounded-lg text-pink-800 font-bold">
+                                <button onclick="changeMonth(-1)" class="hover:text-pink-600 transition-colors p-1"><i class="fas fa-chevron-left"></i></button>
+                                <span id="calendar-month-year" class="text-base tracking-wide min-w-[80px] text-center"></span>
+                                <button onclick="changeMonth(1)" class="hover:text-pink-600 transition-colors p-1"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="calendar-grid mb-3">
+                            <div class="day-header">日</div><div class="day-header">一</div><div class="day-header">二</div><div class="day-header">三</div><div class="day-header">四</div><div class="day-header">五</div><div class="day-header">六</div>
+                        </div>
+                        <div id="calendar-body" class="calendar-grid"></div>
+                        <div class="mt-6 text-sm text-gray-500 flex items-center justify-center gap-3 bg-pink-50 py-2 rounded-xl font-medium">
+                            <span class="w-4 h-4 inline-block bg-sakura-primary rounded shadow-sm relative"><span class="absolute top-[-1px] right-[1px] text-[10px] text-yellow-200">★</span></span> 
+                            <span>表示當日有紀錄 <strong class="text-sakura-dark">(點擊看六級分解析 🎀)</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Question List -->
+                <div class="w-full md:w-[65%] xl:w-[70%] bg-white p-6 md:p-8 rounded-3xl shadow-md border-2 border-sakura-base flex-grow">
+                    <h2 class="text-2xl font-bold mb-6 text-sakura-dark border-b-2 border-pink-200 pb-3 flex justify-between items-end">
+                        <span class="flex items-center gap-3"><i class="fas fa-list-ul text-pink-400"></i> 2027 會考預測趨勢題庫 📚</span>
+                        <span class="text-base font-bold text-pink-700 bg-pink-100 px-4 py-1.5 rounded-full shadow-sm">共 <span id="total-q-count">0</span> 題</span>
+                    </h2>
+                    <div id="question-list" class="space-y-4 max-h-[750px] overflow-y-auto pr-3">
+                        <div class="text-center text-gray-500 py-10"><i class="fas fa-spinner fa-spin text-2xl mb-3 text-pink-400"></i><br>正在載入會考題庫... 🐾</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Test Interface View -->
+        <div id="test-view" class="hidden view-section w-[92%] xl:w-[85%] max-w-[1400px] mx-auto space-y-6">
+            <button onclick="appState.showView('dashboard')" class="text-sakura-text hover:text-sakura-primary mb-2 inline-flex items-center gap-2 font-bold text-lg transition-colors bg-white px-5 py-2.5 rounded-xl shadow-sm border border-pink-200 w-fit">
+                <i class="fas fa-arrow-left"></i> 返回列表 🔙
+            </button>
+            
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-md border-2 border-sakura-base">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 border-b border-pink-100 pb-4">
+                    <h2 id="q-title" class="text-2xl md:text-3xl font-bold text-gray-800 break-words"></h2>
+                    <span id="q-type" class="bg-pink-100 text-pink-800 text-sm px-4 py-1.5 rounded-full font-bold border border-pink-200 whitespace-nowrap shadow-sm"></span>
+                </div>
+                <div class="bg-pink-50 p-6 rounded-2xl border border-pink-100 mb-6">
+                    <h3 class="font-bold text-sakura-dark mb-3 text-lg"><i class="fas fa-info-circle mr-2 text-pink-400"></i>寫作引導說明： 💡</h3>
+                    <p id="q-instructions" class="text-gray-700 text-lg leading-relaxed mb-6 break-words font-medium"></p>
+                    <h3 class="font-bold text-sakura-dark mb-3 text-lg"><i class="fas fa-comment-dots mr-2 text-pink-400"></i>題目資訊 / 圖表： 📊</h3>
+                    <p id="q-prompt" class="text-gray-800 whitespace-pre-wrap leading-relaxed text-lg break-words bg-white p-5 rounded-xl border border-pink-100 shadow-sm font-medium"></p>
+                </div>
+            </div>
+
+            <!-- Answer Area -->
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-md border-2 border-sakura-base relative">
+                <div class="flex justify-between items-end mb-4">
+                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-2"><i class="fas fa-pencil-alt text-sakura-primary"></i>您的作文內容 ✍️</h3>
+                    <div class="flex items-center gap-4">
+                        <span class="text-sm text-gray-500 font-bold hidden sm:inline"><i class="fas fa-stopwatch text-pink-400"></i> 建議作答時間：50分鐘 ⏱️</span>
+                        <span id="word-count" class="text-base text-sakura-text bg-sakura-base px-4 py-1.5 rounded-xl font-bold shadow-sm">字數: 0</span>
+                    </div>
+                </div>
+                <!-- 模擬稿紙背景的顏色 -->
+                <textarea id="user-answer" class="w-full h-80 sm:h-96 p-6 rounded-2xl border-2 border-pink-200 focus:border-sakura-primary focus:ring-0 resize-y bg-[#fdfbf7] transition-colors text-xl leading-[2.5] shadow-inner font-serif" placeholder="請在此輸入您的國文作文... 🌸&#10;會考寫作建議字數約 500~600 字以上，請盡情發揮您的思辨與文采！ ✨"></textarea>
+                
+                <div class="mt-6 flex flex-col sm:flex-row justify-between items-center gap-6">
+                    <div id="last-saved" class="text-base text-gray-500 italic w-full text-center sm:text-left font-medium"></div>
+                    <button id="submit-btn" onclick="submitAnswer()" class="bg-sakura-primary text-white w-full sm:w-auto px-10 py-4 rounded-full hover:bg-pink-600 transition-all shadow-lg font-bold text-lg flex items-center justify-center gap-3 transform hover:-translate-y-1 shrink-0">
+                        <i class="fas fa-paper-plane text-xl"></i> 提交給會考 AI 閱卷老師 💯✨
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Loading Overlay -->
+            <div id="ai-loading" class="hidden bg-white/90 absolute inset-0 z-10 flex flex-col items-center justify-center rounded-3xl backdrop-blur-md m-4">
+                <div class="loader mb-6"></div>
+                <p class="text-sakura-dark font-bold text-2xl animate-pulse text-center px-4" id="ai-loading-text">AI 閱卷委員正在依據會考標準批改中... 🧐✍️</p>
+                <p class="text-lg text-gray-600 mt-3 font-medium">分析立意取材與結構組織中，請稍候... 🌸</p>
+            </div>
+        </div>
+
+        <!-- 4. Feedback View -->
+        <div id="feedback-view" class="hidden view-section w-[92%] xl:w-[85%] max-w-[1400px] mx-auto space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5 bg-white p-6 rounded-3xl shadow-sm border-2 border-sakura-base">
+                <h2 class="text-2xl md:text-3xl font-bold text-sakura-dark flex items-center gap-3">
+                    <i class="fas fa-award text-yellow-400 text-3xl md:text-4xl drop-shadow-sm"></i> 會考寫作專屬指導報告 🏆✨
+                </h2>
+                <div class="flex gap-3 w-full sm:w-auto">
+                    <button onclick="appState.showView('test')" class="flex-1 sm:flex-none px-6 py-3 border-2 border-sakura-primary text-sakura-primary rounded-xl hover:bg-pink-50 font-bold transition-colors text-center text-lg shadow-sm">
+                        <i class="fas fa-undo mr-2"></i> 修改作文 ✏️
+                    </button>
+                    <button onclick="appState.showView('dashboard')" class="flex-1 sm:flex-none px-6 py-3 bg-sakura-light text-sakura-text rounded-xl hover:bg-sakura-base font-bold transition-colors text-center text-lg shadow-sm border border-pink-200">
+                        <i class="fas fa-list mr-2"></i> 回列表 🔙
+                    </button>
+                </div>
+            </div>
+
+            <!-- Markdown Content Area -->
+            <div class="bg-white p-8 md:p-12 rounded-3xl shadow-lg border-2 border-pink-200 markdown-body break-words" id="fb-content">
+            </div>
+        </div>
+
+    </main>
+
+    <script type="module">
+        // --- Custom Toast Notification System ---
+        window.showToast = (message, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColors = {
+                'error': 'bg-red-500',
+                'success': 'bg-pink-500',
+                'info': 'bg-gray-800'
+            };
+            
+            let icon = 'fa-info-circle';
+            if (type === 'error') icon = 'fa-exclamation-circle';
+            if (type === 'success') icon = 'fa-check-circle';
+
+            toast.className = `${bgColors[type] || bgColors['info']} text-white px-6 py-4 rounded-2xl shadow-2xl transform transition-all duration-300 translate-y-12 opacity-0 flex items-start gap-4 max-w-[90vw] sm:max-w-lg pointer-events-auto border border-white/20`;
+            toast.innerHTML = `<i class="fas ${icon} mt-1.5 text-xl shrink-0"></i><div class="text-base font-medium leading-relaxed break-words whitespace-pre-wrap">${message}</div>`;
+            
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-12', 'opacity-0');
+            });
+            
+            const duration = type === 'error' ? 5000 : 3000;
+            setTimeout(() => {
+                toast.classList.add('translate-y-12', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        };
+
+        // --- 2. Firebase Setup & Global State ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCan2_Rc26HsLkOPr0i5QrgdjAYyqcigJ0",
+            authDomain: "english-reading-6b506.firebaseapp.com",
+            projectId: "english-reading-6b506",
+            storageBucket: "english-reading-6b506.firebasestorage.app",
+            messagingSenderId: "494747176273",
+            appId: "1:494747176273:web:585487fadb29b2e5e2d770",
+            measurementId: "G-4JD6R9MRPQ"
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gept-writing-mock-v1'; 
+        const apiKey = ""; 
+
+        // 資料表結構設定
+        const COL_QUESTIONS = 'TW-Exam-Questions-2027'; // 更換為國文專用 collection
+        const COL_USERS = 'TW-Exam-Users';              
+        const COL_SUBMISSIONS = 'TW-Exam-Submissions';  
+        const DOC_GLOBAL = 'global';
+
+        let app, db, auth;
+        let currentUserUid = null;
+        let currentUserName = null;
+        let isFirebaseReady = false;
+        
+        let questionsData = []; 
+        let questionsStatus = 'loading'; 
+        let userProfileData = { historyIndex: {}, completedDates: [] };
+        let unsubscribeUser = null;
+        
+        let currentCalendarDate = new Date();
+
+        // --- 預設 20 題會考趨勢題庫 ---
+        const DEFAULT_QUESTIONS = [
+            { id: 'q1', type: '圖表判讀與社會觀察', title: '我們與惡的距離：網路酸民現象', instructions: '請閱讀下方圖表資訊，寫下你對「網路酸民現象」的理解，並結合個人生活經驗，提出你的看法。', prompt: '【調查數據顯示】：\n在近三年的網路霸凌事件中，有高達 65% 的攻擊者表示「只是覺得好玩或跟風」，20% 表示「為了伸張正義」，僅有 15% 是與被害者有私人恩怨。\n\n請說明你對此數據的解讀，並寫下你的感受與想法。' },
+            { id: 'q2', type: '情境想像與生命體悟', title: '門', instructions: '「門」可以是有形的阻隔，也可以是無形的心防；打開門可能是迎接新世界，關上門可能是尋求庇護。請以「門」為題，寫下你的經驗、感受或想法。', prompt: '每個人生命中都會面對無數扇門。有些門充滿未知，有些門給人安全感。請結合具體經驗，寫出你面對某一扇「門」時的故事。' },
+            { id: 'q3', type: '對話思辨與價值觀', title: '關於「成功」的定義', instructions: '請閱讀以下兩人的對話，並就你的經驗與觀察，寫下你對「成功」的看法。', prompt: '甲：「成功就是考上頂尖大學，找到高薪工作，成為社會的菁英。」\n乙：「不對，成功是能從事自己熱愛的事物，就算平凡，也能每天感到快樂與踏實。」\n\n你比較認同誰的觀點？或者你有其他的看法？' },
+            { id: 'q4', type: '生活觀察與情感', title: '菜市場裡的角落', instructions: '菜市場是充滿生命力的地方，有喧囂的叫賣聲，也有不為人知的故事。請以「菜市場裡的角落」為題，寫下一篇結構完整的文章。', prompt: '請仔細回想你走訪傳統市場的經驗，運用感官摹寫（視覺、聽覺、嗅覺等），寫下一個最令你印象深刻的角落或人物。' },
+            { id: 'q5', type: '個人反思與成長', title: '那一次，我選擇了放棄', instructions: '放棄不一定代表失敗，有時是為了更好的前進或保護自己。請以「那一次，我選擇了放棄」為題，寫下你的經驗與體悟。', prompt: '我們總是被教導「永不放棄」，但在你的生命經驗中，是否曾有過「選擇放棄」的時刻？這個決定帶給你什麼影響？' },
+            { id: 'q6', type: '資訊解讀與媒體素養', title: '「標題殺」的省思', instructions: '社群媒體上充斥著聳動的標題（如：震驚！太神了！不看會後悔！）。請探討這種現象背後的原因及帶來的影響。', prompt: '【常見標題】：\n◆ 專家證實！每天吃這個，考試絕對拿高分！\n◆ 男孩做了一個動作，全場都驚呆了！\n\n為什麼這類標題會大受歡迎？你曾受騙過嗎？身為現代閱聽人該具備什麼態度？' },
+            { id: 'q7', type: '抽象概念與情境', title: '空白的筆記本', instructions: '一本空白的筆記本，充滿了無限可能。請以「空白的筆記本」為題，寫下你的感受或想法。', prompt: '如果現在給你一本完全空白的筆記本，你會用來記錄什麼？是未來的夢想、不欲人知的秘密，還是生活中的小確幸？為什麼？' },
+            { id: 'q8', type: '人際互動與社會關懷', title: '青銀共居的挑戰與契機', instructions: '請針對「年輕人與銀髮族共同居住」的社會議題，提出你的看法。', prompt: '政府推動「青銀共居」，讓沒有血緣關係的年輕人與老人同住。你認為這會產生什麼衝突？又會帶來什麼意想不到的火花？' },
+            { id: 'q9', type: '個人經歷與成長', title: '從陌生到熟悉', instructions: '請以「從陌生到熟悉」為題，寫下你在學習新事物或適應新環境過程中的經驗。', prompt: '也許是一項新技能，也許是一個新班級。這個從抗拒、摸索到駕輕就熟的過程，帶給你什麼樣的成長？' },
+            { id: 'q10', type: '現象觀察與思辨', title: '我們這個「快」世代', instructions: '現代人追求速度：速食、快時尚、短影音。請以「我們這個『快』世代」為題，寫下你的觀察與反思。', prompt: '「快」為我們帶來了便利，但我們是否也因此失去了什麼？請具體說明你的看法。' },
+            { id: 'q11', type: '情感記憶與敘事', title: '捨不得', instructions: '面對難以割捨的事物（物品、習慣、關係等），你有什麼體會？請以「捨不得」為題進行寫作。', prompt: '請寫下一次你感到「捨不得」的真實經驗。是什麼讓你猶豫掙扎？最後你學到了什麼？' },
+            { id: 'q12', type: '資訊解讀與哲理', title: '未成功的物品展覽會', instructions: '如果有一個展覽會專門展示「未成功」的物品，你會放進什麼？', prompt: '【展品範例】：落選的科展作品、烤焦的餅乾、送不出去的卡片。\n\n請選擇一樣屬於你的「未成功物品」，描述它的外觀，並說明它對你的深刻意義。' },
+            { id: 'q13', type: '對話思辨與生活態度', title: '多做多得？', instructions: '社會常鼓勵我們「多做多得」，但有時多做卻可能帶來反效果。請就此議題寫下你的看法。', prompt: '同學甲：「多做可以學到更多經驗，吃虧就是占便宜。」\n同學乙：「多做只會讓自己更累，還容易被當成理所當然。」\n\n結合你的親身經歷，寫下你的體會。' },
+            { id: 'q14', type: '圖表判讀與選擇', title: '自由與牢籠', instructions: '籠子裡有兩隻倉鼠。一隻在滾輪上跑得開心，另一隻正試圖推開籠子的門逃出去。', prompt: '【情境思考】：\n安逸的牢籠 vs 未知的自由。\n\n這幅畫面讓你聯想到人類社會中的什麼現象？你會選擇當哪一隻倉鼠？為什麼？' },
+            { id: 'q15', type: '生活觀察與創新', title: '我想開設一家這樣的店', instructions: '開一家店，可能是為了實現夢想，也可能是為了滿足生活中的某種期盼。你想開什麼樣的店？', prompt: '請具體描述你想開的這家店。它賣什麼？店內裝潢如何？為什麼社會需要這樣的一家店？' },
+            { id: 'q16', type: '傳統習俗與思辨', title: '在這樣的傳統習俗裡，我看見……', instructions: '從小到大，許多傳統習俗伴隨我們成長。請寫下你對某個習俗的觀察。', prompt: '例如：過年大掃除、端午吃粽子、紅包金額必須是雙數等。\n\n這習俗傳遞了什麼情感？又或者你覺得它有什麼不合時宜之處？' },
+            { id: 'q17', type: '社會現象與個人責任', title: '當災難發生時', instructions: '面對近年來全球頻發的天災人禍（如地震、疫情），身為國中生的我們能做什麼？', prompt: '請寫下你在重大災難事件中的所見所聞，以及這對你的人生觀產生了什麼改變。' },
+            { id: 'q18', type: '情感與物件', title: '抽屜深處的寶物', instructions: '每個人都有不想被別人發現，卻又無比珍視的東西。', prompt: '請以「抽屜深處的寶物」為題，描述這件物品的來歷，以及它為何對你如此重要。' },
+            { id: 'q19', type: '抽象概念與邏輯', title: '完美的定義', instructions: '這世界上真的有「完美」嗎？請探討「完美」與「缺陷」的關係。', prompt: '有人說「缺陷也是一種美」，你同意嗎？請結合生活實例，論述你對「完美」的看法。' },
+            { id: 'q20', type: '自我期許與未來', title: '寫給三年後的自己', instructions: '高中三年即將展開，請以信件或散文形式，寫下對未來的期許。', prompt: '你希望三年後的自己具備什麼樣的能力與心態？在邁向未來的道路上，你現在必須做好什麼準備？' }
+        ];
+
+        // State Management
+        window.appState = {
+            currentView: 'login',
+            selectedQuestionId: null,
+            showView: async function(viewId) {
+                if(viewId === 'dashboard' && !currentUserName) {
+                    showToast("請先登入才能訪問此頁面喔！ 🥺", "error"); 
+                    return;
+                }
+                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+                document.getElementById(`${viewId}-view`).classList.remove('hidden');
+                this.currentView = viewId;
+                
+                if (viewId === 'dashboard') {
+                    renderDashboard();
+                    window.scrollTo(0, 0);
+                }
+                if (viewId === 'test') {
+                    await renderTestArea(); 
+                }
+            }
+        };
+
+        // --- API Key Modal Logic ---
+        window.openApiModal = () => {
+            const storedKey = localStorage.getItem('gemini_api_key');
+            if(storedKey) document.getElementById('api-key-input').value = storedKey;
+            document.getElementById('api-key-modal').classList.remove('hidden');
+        };
+        window.closeApiModal = () => document.getElementById('api-key-modal').classList.add('hidden');
+        window.saveApiKey = () => {
+            const key = document.getElementById('api-key-input').value.trim();
+            if(key) {
+                localStorage.setItem('gemini_api_key', key);
+                closeApiModal();
+                showToast('✅ API 金鑰已安全儲存！ 💖', 'success');
+            } else {
+                showToast('請輸入有效的金鑰喔！', 'error');
+            }
+        };
+
+        function updateConnectionStatus(status, text) {
+            const light = document.getElementById('status-light');
+            const txt = document.getElementById('status-text');
+            txt.textContent = text;
+            light.className = 'w-3 h-3 rounded-full shrink-0 ' + 
+                (status === 'loading' ? 'bg-yellow-400 animate-pulse' : 
+                 status === 'success' ? 'bg-green-400' : 'bg-red-400');
+        }
+
+        async function initFirebase() {
+            try {
+                updateConnectionStatus('loading', '連線至資料庫... 🐾');
+                const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+                app = initializeApp(config);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (authError) {
+                    await signInAnonymously(auth);
+                }
+                
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserUid = user.uid;
+                        isFirebaseReady = true;
+                        
+                        listenToGlobalUsers();
+                        await checkAndLoadQuestions(); // 檢查並載入會考題庫
+                        
+                        updateConnectionStatus('success', '系統就緒 🌸');
+                    } else {
+                        isFirebaseReady = false;
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+                updateConnectionStatus('error', '連線失敗 💦');
+                showToast('無法連線至資料庫', 'error');
+            }
+        }
+
+        // 檢查雲端是否有題庫，若無則自動匯入 20 題會考預測題
+        async function checkAndLoadQuestions() {
+            questionsStatus = 'loading';
+            try {
+                const qRef = collection(db, 'artifacts', appId, 'public', 'data', COL_QUESTIONS);
+                const qSnap = await getDocs(qRef);
+                
+                if (qSnap.empty) {
+                    // 自動匯入預設題目
+                    console.log("初始化 2027 會考預測題庫...");
+                    const batch = writeBatch(db);
+                    DEFAULT_QUESTIONS.forEach(q => {
+                        const docRef = doc(qRef, q.id);
+                        batch.set(docRef, q);
+                    });
+                    await batch.commit();
+                    questionsData = [...DEFAULT_QUESTIONS];
+                } else {
+                    questionsData = [];
+                    qSnap.forEach(doc => {
+                        questionsData.push({ id: doc.id, ...doc.data() });
+                    });
+                    // 排序
+                    questionsData.sort((a, b) => {
+                        const numA = parseInt(a.id.replace('q', '')) || 0;
+                        const numB = parseInt(b.id.replace('q', '')) || 0;
+                        return numA - numB;
+                    });
+                }
+                
+                questionsStatus = 'loaded';
+                document.getElementById('total-q-count').textContent = questionsData.length;
+            } catch (error) {
+                console.error("Failed to load questions:", error);
+                // 發生權限錯誤時，降級使用本地端 Array
+                questionsData = [...DEFAULT_QUESTIONS];
+                questionsStatus = 'loaded';
+                document.getElementById('total-q-count').textContent = questionsData.length;
+                console.log("已降級使用本地端題庫。");
+            }
+            
+            if (appState.currentView === 'dashboard') {
+                renderDashboard();
+            }
+        }
+
+        function listenToGlobalUsers() {
+            if(!currentUserUid || !isFirebaseReady) return;
+            const globalRef = doc(db, 'artifacts', appId, 'public', 'data', 'TW-Exam-Global', DOC_GLOBAL);
+            
+            onSnapshot(globalRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.users && Array.isArray(data.users)) {
+                        const names = data.users.map(u => typeof u === 'string' ? u : u.name).filter(Boolean);
+                        const uniqueNames = [...new Set(names)].reverse();
+                        renderQuickLogin(uniqueNames);
+                    } else {
+                        renderQuickLogin([]);
+                    }
+                } else {
+                    renderQuickLogin([]);
+                }
+            }, (error) => {
+                console.error("Listen global error:", error);
+                updateConnectionStatus('error', '同步名單失敗');
+            });
+        }
+
+        window.handleLogin = async (nameOverride) => {
+            const nameInput = document.getElementById('login-name').value;
+            const finalName = (nameOverride || nameInput).trim();
+            if (!finalName) return showToast("請輸入您的姓名喔 🥺", "error");
+            if (!isFirebaseReady) return showToast("系統連線中，請稍候... 🐾", "info");
+
+            const loginBtn = document.querySelector('button[onclick="handleLogin()"]');
+            const originalText = loginBtn.innerText;
+            loginBtn.innerText = '登入中... 🚀';
+            loginBtn.disabled = true;
+
+            try {
+                const globalRef = doc(db, 'artifacts', appId, 'public', 'data', 'TW-Exam-Global', DOC_GLOBAL);
+                const globalSnap = await getDoc(globalRef);
+                let users = globalSnap.exists() ? globalSnap.data().users || [] : [];
+                
+                const stringUsers = users.map(u => typeof u === 'string' ? u : u.name).filter(Boolean);
+                if (!stringUsers.includes(finalName)) {
+                    stringUsers.push(finalName);
+                    await setDoc(globalRef, { users: stringUsers }, { merge: true });
+                }
+
+                currentUserName = finalName;
+                document.getElementById('header-user').classList.remove('hidden');
+                document.getElementById('header-user').classList.add('flex');
+                document.getElementById('header-username').textContent = finalName;
+                document.getElementById('dashboard-username').textContent = finalName + " 同學 🌟";
+
+                subscribeToUserData(finalName);
+                appState.showView('dashboard');
+                showToast(`歡迎回來，${finalName}！🌸\n準備好迎接會考寫作挑戰了嗎？💪`, 'success');
+            } catch (e) {
+                console.error("Login Error:", e);
+                showToast("登入失敗，請檢查網路連線後重試 💦。", "error");
+            } finally {
+                loginBtn.innerText = originalText;
+                loginBtn.disabled = false;
+            }
+        };
+
+        function subscribeToUserData(userName) {
+            if (unsubscribeUser) unsubscribeUser();
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', COL_USERS, `user_${userName}`);
+            
+            unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
+                if (docSnap.exists()) {
+                    userProfileData = docSnap.data();
+                    if(!userProfileData.completedDates) userProfileData.completedDates = [];
+                    if(!userProfileData.historyIndex) userProfileData.historyIndex = {};
+                } else {
+                    userProfileData = { historyIndex: {}, completedDates: [] };
+                    await setDoc(userRef, userProfileData);
+                }
+                
+                if(appState.currentView === 'dashboard') renderCalendar();
+            }, (err) => console.error("User data listen error", err));
+        }
+
+        window.logout = () => {
+            currentUserName = null;
+            userProfileData = { historyIndex: {}, completedDates: [] };
+            if(unsubscribeUser) unsubscribeUser();
+            document.getElementById('header-user').classList.add('hidden');
+            document.getElementById('header-user').classList.remove('flex');
+            document.getElementById('login-name').value = '';
+            appState.showView('login');
+            showToast("已登出 👋", "info");
+        };
+
+        function renderQuickLogin(users) {
+            const container = document.getElementById('quick-login-list');
+            if (users.length === 0) {
+                container.innerHTML = '<span class="text-base text-gray-400">尚無紀錄</span>';
+                return;
+            }
+            container.innerHTML = users.map(u => `
+                <button onclick="handleLogin('${u}')" class="bg-sakura-base text-sakura-text px-4 py-2 rounded-full text-base font-bold hover:bg-pink-200 transition border border-pink-200 shadow-sm flex items-center gap-2 max-w-full truncate">
+                    <i class="fas fa-user text-sm shrink-0 text-pink-500"></i> <span class="truncate">${u}</span>
+                </button>
+            `).join('');
+        }
+
+        function renderDashboard() {
+            renderCalendar();
+            const qList = document.getElementById('question-list');
+            
+            if (questionsStatus === 'loading') {
+                qList.innerHTML = '<div class="text-center text-gray-500 py-10"><i class="fas fa-spinner fa-spin text-2xl mb-3 text-pink-400"></i><br>正在載入會考趨勢題庫... 🐾</div>';
+                return;
+            }
+
+            qList.innerHTML = questionsData.map((q, index) => {
+                const savedIndex = userProfileData.historyIndex?.[q.id];
+                const hasCompleted = savedIndex && savedIndex.hasFeedback;
+                const statusIcon = hasCompleted 
+                    ? `<i class="fas fa-medal text-yellow-400 text-3xl drop-shadow-md" title="已獲取六級分指導 🥇"></i>` 
+                    : `<i class="far fa-circle text-gray-300 text-3xl" title="尚未挑戰"></i>`;
+                
+                return `
+                <div class="flex items-center justify-between p-4 sm:p-5 bg-white rounded-2xl border-2 border-pink-100 hover:shadow-md hover:border-pink-300 transition-all cursor-pointer gap-3 sm:gap-4 group" onclick="selectQuestion('${q.id}')">
+                    <div class="flex items-start gap-4 sm:gap-5 flex-1 min-w-0">
+                        <div class="mt-1 shrink-0 transition-transform group-hover:scale-110">${statusIcon}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-sakura-dark text-lg sm:text-xl break-words leading-snug mb-1.5">第 ${index + 1} 題：${q.title}</div>
+                            <div class="text-sm text-pink-700 bg-pink-100 inline-block px-3 py-1 rounded-md font-bold shadow-sm border border-pink-200">${q.type}</div>
+                        </div>
+                    </div>
+                    <button class="bg-sakura-light border-2 border-sakura-primary text-sakura-primary group-hover:bg-sakura-primary group-hover:text-white w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors shadow-sm shrink-0">
+                        <i class="fas fa-pen text-base sm:text-lg"></i>
+                    </button>
+                </div>
+                `;
+            }).join('');
+        }
+
+        window.changeMonth = (delta) => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        };
+
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            
+            document.getElementById('calendar-month-year').textContent = `${year}年 ${month + 1}月`;
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const calendarBody = document.getElementById('calendar-body');
+            let html = '';
+            
+            for (let i = 0; i < firstDay; i++) {
+                html += `<div class="calendar-day day-empty"></div>`;
+            }
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const isCompleted = userProfileData.completedDates && userProfileData.completedDates.includes(dateString);
+                
+                if(isCompleted) {
+                    html += `<div class="calendar-day day-completed" onclick="openHistoryModal('${dateString}')" title="點擊查看當日紀錄">${i}</div>`;
+                } else {
+                    html += `<div class="calendar-day day-normal">${i}</div>`;
+                }
+            }
+            
+            calendarBody.innerHTML = html;
+        }
+
+        window.openHistoryModal = (dateStr) => {
+            const matches = Object.keys(userProfileData.historyIndex || {}).filter(qId => {
+                const idx = userProfileData.historyIndex[qId];
+                return idx.date === dateStr && idx.hasFeedback;
+            });
+
+            const content = document.getElementById('history-modal-content');
+            document.getElementById('history-modal-title').innerHTML = `<i class="fas fa-book-reader text-pink-500"></i> ${dateStr} 練筆紀錄 📖`;
+
+            if(matches.length === 0) {
+                content.innerHTML = '<div class="text-center text-gray-500 text-lg py-10 font-medium">會考戰士，您這天休息中喔！ 🛋️</div>';
+            } else if(matches.length === 1) {
+                showHistoryFeedback(matches[0]);
+            } else {
+                let listHtml = '<div class="space-y-4">';
+                listHtml += '<p class="text-lg text-sakura-text font-bold mb-4">您在這天完成了多項寫作挑戰： 🌟</p>';
+                matches.forEach(qId => {
+                    const q = questionsData.find(x => x.id === qId);
+                    const title = q ? q.title : `未知題目 (${qId})`;
+                    listHtml += `
+                        <button onclick="showHistoryFeedback('${qId}')" class="w-full text-left p-6 border-2 border-pink-100 rounded-2xl hover:bg-pink-50 hover:border-pink-300 transition-all group flex justify-between items-center shadow-sm">
+                            <span class="font-bold text-xl text-sakura-dark group-hover:text-sakura-primary transition-colors">${title}</span>
+                            <i class="fas fa-chevron-right text-pink-400 group-hover:text-pink-600"></i>
+                        </button>
+                    `;
+                });
+                listHtml += '</div>';
+                content.innerHTML = listHtml;
+            }
+
+            document.getElementById('history-modal').classList.remove('hidden');
+        };
+
+        window.showHistoryFeedback = async (qId) => {
+            const content = document.getElementById('history-modal-content');
+            const q = questionsData.find(x => x.id === qId);
+            const title = q ? q.title : '寫作紀錄';
+            
+            document.getElementById('history-modal-title').innerHTML = `<i class="fas fa-file-alt text-sakura-primary"></i> ${title} - 閱卷解析 🧐`;
+            content.innerHTML = '<div class="text-center py-20"><div class="loader mx-auto mb-4"></div><p class="text-sakura-text text-lg font-bold">正在向雲端索取您的會考成績單... 💌</p></div>';
+
+            try {
+                const subRef = doc(db, 'artifacts', appId, 'public', 'data', COL_SUBMISSIONS, `${currentUserName}_${qId}`);
+                const subSnap = await getDoc(subRef);
+                
+                if (!subSnap.exists()) {
+                    content.innerHTML = '<div class="text-center text-red-500 py-10 text-xl font-bold">找不到此紀錄的詳細資料 🥺。</div>';
+                    return;
+                }
+
+                const data = subSnap.data();
+                let html = `
+                    <div class="mb-8 p-6 md:p-8 bg-[#fdfbf7] rounded-2xl border-2 border-pink-200 shadow-inner">
+                        <h4 class="font-bold text-sakura-dark mb-4 border-b-2 border-pink-200 pb-2 text-xl md:text-2xl"><i class="fas fa-feather-alt mr-2 text-pink-400"></i>您的國文作文原稿 📝</h4>
+                        <p class="whitespace-pre-wrap text-gray-800 leading-[2.2] text-lg sm:text-xl font-serif">${data.draft}</p>
+                    </div>
+                    <div class="flex items-center gap-4 my-8">
+                        <div class="flex-grow h-px bg-pink-200"></div>
+                        <span class="text-pink-600 text-xl font-bold"><i class="fas fa-graduation-cap"></i> AI 閱卷委員評分與指導 ✨</span>
+                        <div class="flex-grow h-px bg-pink-200"></div>
+                    </div>
+                    <div class="markdown-body bg-white p-2">
+                        ${marked.parse(data.feedback)}
+                    </div>
+                    <div class="mt-8 text-center">
+                       <button onclick="closeHistoryModal()" class="px-8 py-3 bg-sakura-light text-sakura-text hover:bg-pink-200 rounded-xl font-bold text-lg transition-colors shadow-sm border border-pink-200">關閉視窗</button>
+                    </div>
+                `;
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = `<div class="text-center text-red-500 py-10 text-xl font-bold">讀取失敗：${error.message} 💦</div>`;
+            }
+        };
+
+        window.closeHistoryModal = () => {
+            document.getElementById('history-modal').classList.add('hidden');
+        };
+
+        window.selectQuestion = (qId) => {
+            appState.selectedQuestionId = qId;
+            appState.showView('test');
+        };
+
+        async function renderTestArea() {
+            const q = questionsData.find(x => x.id === appState.selectedQuestionId);
+            if(!q) return;
+
+            document.getElementById('q-title').textContent = q.title;
+            document.getElementById('q-type').textContent = q.type;
+            document.getElementById('q-instructions').textContent = q.instructions;
+            document.getElementById('q-prompt').textContent = q.prompt;
+            
+            const textarea = document.getElementById('user-answer');
+            const savedIndex = userProfileData.historyIndex?.[q.id];
+            
+            textarea.disabled = true;
+            textarea.value = '正在從雲端同步您的草稿... ☁️';
+            document.getElementById('last-saved').textContent = '';
+            
+            if (savedIndex) {
+                try {
+                    const subRef = doc(db, 'artifacts', appId, 'public', 'data', COL_SUBMISSIONS, `${currentUserName}_${q.id}`);
+                    const subSnap = await getDoc(subRef);
+                    if(subSnap.exists() && subSnap.data().draft) {
+                        textarea.value = subSnap.data().draft;
+                    } else {
+                        textarea.value = '';
+                    }
+                    document.getElementById('last-saved').textContent = `上次作答時間: ${savedIndex.lastUpdate}`;
+                } catch(e) {
+                    textarea.value = '';
+                    console.error("載入草稿失敗", e);
+                }
+            } else {
+                textarea.value = '';
+            }
+            
+            textarea.disabled = false;
+            updateWordCount();
+            window.scrollTo(0, 0);
+        }
+
+        document.getElementById('user-answer').addEventListener('input', updateWordCount);
+        function updateWordCount() {
+            const text = document.getElementById('user-answer').value.replace(/\n/g, ""); // 不計算換行
+            const words = text.length; // 國文計算總字元數
+            document.getElementById('word-count').textContent = `字數: ${words} 字`;
+        }
+
+        window.submitAnswer = async () => {
+            const answer = document.getElementById('user-answer').value.trim();
+            if (answer.length < 50) {
+                showToast("會考作文建議至少 500 字以上。您目前的內容太少，請再多寫一點思辨與細節喔！ 🥺", "error");
+                return;
+            }
+
+            const q = questionsData.find(x => x.id === appState.selectedQuestionId);
+            document.getElementById('ai-loading').classList.remove('hidden');
+            document.getElementById('ai-loading-text').textContent = '正在為您儲存考卷... 💾';
+            
+            try {
+                await saveProgress(answer, null);
+                
+                document.getElementById('ai-loading-text').textContent = 'AI 閱卷委員正在嚴格批改中... 🧐✍️';
+                const feedbackData = await callGeminiAPI(q.title, q.instructions, q.prompt, answer);
+                renderFeedback(feedbackData);
+                
+                document.getElementById('ai-loading-text').textContent = '正在產出您的六級分指導報告... 🖨️✨';
+                await saveProgress(answer, feedbackData);
+                
+                appState.showView('feedback');
+                window.scrollTo(0, 0);
+                showToast("批改完成！朝六級分又邁進了一大步！ 🎉", "success");
+
+            } catch (e) {
+                console.error("Submit Error:", e);
+                if(e.message.includes("400")) {
+                    showToast("批改失敗 (Error 400)\nAPI金鑰無效或被停用，請至右上角設定更新喔 💦。", "error");
+                    setTimeout(openApiModal, 1500);
+                } else if(e.message.includes("403")) {
+                    showToast("批改失敗 (Error 403)\n缺少有效金鑰或權限不足。\n請設定您的 API 金鑰！ 🔑", "error");
+                    setTimeout(openApiModal, 1500);
+                } else if(e.message.includes("429")) {
+                    showToast("批改失敗 (Error 429)\n請求太頻繁，請稍後再試 🥺。", "error");
+                } else {
+                    showToast("批改發生錯誤，請稍後重試 💦。\n" + e.message, "error");
+                }
+            } finally {
+                document.getElementById('ai-loading').classList.add('hidden');
+            }
+        };
+
+        async function saveProgress(draft, feedback) {
+            if(!currentUserName) return;
+            
+            const qId = appState.selectedQuestionId;
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+            const timeStr = now.toLocaleString('zh-TW');
+
+            const subRef = doc(db, 'artifacts', appId, 'public', 'data', COL_SUBMISSIONS, `${currentUserName}_${qId}`);
+            await setDoc(subRef, {
+                draft: draft,
+                feedback: feedback || null,
+                date: dateStr,
+                lastUpdate: timeStr
+            }, { merge: true });
+
+            let newIndex = { ...userProfileData.historyIndex };
+            newIndex[qId] = {
+                lastUpdate: timeStr,
+                date: dateStr,
+                hasFeedback: !!feedback || (newIndex[qId] ? newIndex[qId].hasFeedback : false)
+            };
+
+            let newDates = [...(userProfileData.completedDates || [])];
+            if (feedback && !newDates.includes(dateStr)) {
+                newDates.push(dateStr);
+            }
+
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', COL_USERS, `user_${currentUserName}`);
+            await setDoc(userRef, {
+                historyIndex: newIndex,
+                completedDates: newDates
+            }, { merge: true });
+        }
+
+        async function callGeminiAPI(title, instructions, prompt, userAnswer) {
+            // 國文會考六級分標準提示詞
+            const systemPrompt = `你是一位專業的「台灣國中教育會考國文閱卷委員」兼「寫作指導名師」。
+你的任務是依據「國中教育會考寫作測驗評分規準」（0級分至6級分），嚴格且精準地批改學生的作文。近年會考趨勢著重「圖表判讀、社會觀察、個人思辨與情感轉折」，請特別留意學生是否具備這些能力。
+
+請務必使用「繁體中文」，並嚴格遵守以下的 Markdown 格式輸出報告，不遺漏任何單元：
+
+# 🎯 會考國文寫作專屬指導報告
+同學你好！老師已經仔細閱讀了你的文章。會考作文不僅看文筆，更看重「立意取材」的深度與「個人思辨」的展現。以下是為你量身打造的診斷與升級指南：
+
+## 🏆 1. 綜合評分與總評
+* **預估級分：** [請給出 0-6 的明確級分，例如：5 級分]
+* **老師總評：** (給予整體評價。若有良好思辨請給予肯定，若有不足請溫和點出核心問題)
+
+## 📊 2. 評分規準四大向度分析
+(請嚴格對照 0-6 級分規準進行精準點評)
+### 💡 立意取材：
+(分析：是否切合題旨？舉例是否適切且深入？是否具有深刻的社會觀察或個人獨特見解？)
+### 🏗️ 結構組織：
+(分析：起承轉合是否流暢？段落分配是否得宜？首尾是否有呼應？)
+### ✍️ 遣詞造句：
+(分析：詞彙使用是否精確豐富？修辭（如譬喻、排比、轉化）運用是否生動？句型是否有變化？)
+### 📝 錯別字與格式：
+(分析：若有錯別字、簡體字或標點符號錯誤，請一一條列並更正。若無則給予讚賞)
+
+## 🚀 3. 邁向六級分：深度與結構升級建議
+(針對該生的弱點，提出 2-3 點具體可行的升級建議。例如：如何加深社會議題的反思？如何讓情感轉折更自然？如何避免平鋪直敘？)
+
+## ✨ 4. 佳句賞析與潤飾
+(挑出文中 1-2 個句子，示範如何套用六級分的高階寫作技巧進行改寫)
+* **❌ 你的原句：** (節錄學生原句)
+* **✅ 六級分修辭示範：** (運用高級修辭或更深刻的詞彙改寫)
+* **💡 老師解析：** (說明為什麼這樣改會更好)
+
+## 📖 5. 六級分示範段落 (Polished Paragraph)
+(請挑選學生文章中最核心的一個段落（例如：闡述觀點、抒發情感的高潮處），親自示範如何以「六級分滿分」的水準重寫。示範段落必須展現：深刻的立意、嚴密的邏輯、以及優美純熟的文采。)`;
+
+            const userMessage = `【題目】：${title}\n【引導說明】：${instructions}\n【題目資訊】：${prompt}\n\n【學生作答內容】：\n${userAnswer}`;
+
+            const activeKey = localStorage.getItem('gemini_api_key') || apiKey;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userMessage }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    temperature: 0.4 // 稍微提高溫度讓示範段落更有文采
+                }
+            };
+
+            let retries = 5;
+            let delay = 1000;
+            
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error(`API HTTP Error: ${response.status}`);
+                    
+                    const result = await response.json();
+                    let textResult = result.candidates[0].content.parts[0].text;
+                    return textResult;
+
+                } catch (e) {
+                    retries--;
+                    if (retries === 0) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        function renderFeedback(markdownData) {
+            const contentContainer = document.getElementById('fb-content');
+            
+            if (!markdownData) {
+                contentContainer.innerHTML = `<div class="p-6 bg-red-50 text-red-700 rounded-xl text-lg font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> 批改報告產出失敗，請重新提交。</div>`;
+                return;
+            }
+
+            contentContainer.innerHTML = marked.parse(markdownData);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initFirebase();
+            updateWordCount();
+        });
+
+    </script>
+</body>
+</html>
